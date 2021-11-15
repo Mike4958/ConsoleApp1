@@ -1,0 +1,75 @@
+{
+  "deviceId": "MyAzureID2",
+  "etag": "AAAAAAAAAE4=",
+  "deviceEtag": "MjE2NzgxMDE1",
+  "status": "enabled",
+  "statusUpdateTime": "0001-01-01T00:00:00Z",
+  "connectionState": "Disconnected",
+  "lastActivityTime": "2021-11-08T01:17:29.3445441Z",
+  "cloudToDeviceMessageCount": 0,
+  "authenticationType": "sas",
+  "x509Thumbprint": {
+    "primaryThumbprint": null,
+    "secondaryThumbprint": null
+  },
+  "modelId": "",
+  "version": 133,
+  "properties": {
+    "desired": {
+      "telemetryConfig": {
+        "sendFrequency": "60m"
+      },
+      "Mike": "ON",
+      "floatSwitchTwo": "ON",
+      "floatSwitchThree": "Off",
+      "floatSwitchOne": "ON",
+      "$metadata": {
+        "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+        "$lastUpdatedVersion": 78,
+        "telemetryConfig": {
+          "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+          "$lastUpdatedVersion": 78,
+          "sendFrequency": {
+            "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+            "$lastUpdatedVersion": 78
+          }
+        },
+        "Mike": {
+          "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+          "$lastUpdatedVersion": 78
+        },
+        "floatSwitchTwo": {
+          "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+          "$lastUpdatedVersion": 78
+        },
+        "floatSwitchThree": {
+          "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+          "$lastUpdatedVersion": 78
+        },
+        "floatSwitchOne": {
+          "$lastUpdated": "2021-11-08T02:13:20.2996945Z",
+          "$lastUpdatedVersion": 78
+        }
+      },
+      "$version": 78
+    },
+    "reported": {
+      "DateTimeLastAppLaunch": "2020-01-03T10:47:20.2271325Z",
+      "DateTimeLastDesiredPropertyChangeReceived": "2020-01-03T10:47:38.5937491Z",
+      "$metadata": {
+        "$lastUpdated": "2020-01-03T10:47:38.4227742Z",
+        "DateTimeLastAppLaunch": {
+          "$lastUpdated": "2020-01-03T10:47:20.203334Z"
+        },
+        "DateTimeLastDesiredPropertyChangeReceived": {
+          "$lastUpdated": "2020-01-03T10:47:38.4227742Z"
+        }
+      },
+      "$version": 55
+    }
+  },
+  "capabilities": {
+    "iotEdge": false
+  },
+  "deviceScope": ""
+}
