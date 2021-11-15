@@ -1215,6 +1215,7 @@ namespace ConsoleApp1
 
         void RaisePropertyChanged([CallerMemberName] string prop = null)
         {
+            //Test Comment no meaing at all
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         }
 
