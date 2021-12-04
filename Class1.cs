@@ -5,6 +5,7 @@ using Microsoft.Azure.Devices.Shared;
 using Microsoft.Azure.EventGrid;
 using Microsoft.Azure.EventGrid.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,6 +16,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Azure.Messaging.EventHubs;
+//using Azure.Messaging.EventHubs.Consumer;
+using Azure.Messaging.EventHubs.Processor;
+using Azure.Storage.Blobs;
+using Azure.Messaging.EventHubs.Producer;
 
 namespace ConsoleApp1
 {
@@ -27,13 +33,13 @@ namespace ConsoleApp1
         public Class1()
         {
             
-#if DEBUG
+#if RASPBERRY
             // Create event triggers for DEBUG PI port pins that need to monitored for chnages.
             // These  changes will cause a Event Trigger
             //Gpio.RegisterCallbackForPinValueChangedEvent(ButtonPinNumber, PinEventTypes.Rising, PinChangeEventHandler);
-            Console.WriteLine("DEBUG PI COMPLIE");
+            Console.WriteLine("RELEASE OR RASPBERRY DEBUG COMPLIE");
 #else
-            Console.WriteLine("REGULAR COMPLIE");
+            Console.WriteLine("DEBUG No GPIO COMPLIE");
 #endif
             //Task task = InitializeDeviceState();
             InitializeDeviceState();
@@ -52,10 +58,10 @@ namespace ConsoleApp1
         }
 
         //public async Task InitializeDeviceState()
-        public void InitializeDeviceState()
+        public async void InitializeDeviceState()
         {
 
-#if DEBUG
+#if RASPBERRY
             gpioController = new GpioController();
 #else
             Console.WriteLine("REGULAR COMPLIE");
@@ -63,22 +69,43 @@ namespace ConsoleApp1
 #endif
             Twin twin;
 
+            //DeviceClient myDeviceClientTEMP = DeviceClient.//Create( IotHubUri, new DeviceAuthenticationWithRegistrySymmetricKey(DeviceId, DeviceKey), Microsoft.Azure.Devices.Client.TransportType.Mqtt); //TransportType.Mqtt
+
             // Example --- int me2 = ("5" == "5") ? 1 : 0;
-            twin = myDeviceClient.GetTwinAsync().Result;
-            //Twin twin = myDeviceClient.GetTwinAsync();
-            //twin.Properties.Desired
-            registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=");
+            //Twin twin = myDeviceClient.GetTwinAsync().ConfigureAwait(true);
+
+            twin = await myDeviceClient.GetTwinAsync();
+            //TwinCollection desiredProperties = twin.Properties.Desired;
+            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=");
             //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=");
             //HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=
+            myDeviceClient.OpenAsync().Wait();
+
+            
+
             myDeviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, twin).GetAwaiter().GetResult();
 
-            ledPin = (twin.Properties.Desired["floatSwitchTwo"] == "ON") ? 1 : 5;
-
+            ledPin = (twin.Properties.Desired["floatSwitchTwo"].ToString() == "ON") ? 1 : 5;
             twin.Properties.Desired["floatSwitchTwo"] = "DESIREDOFF222";
+            twin.Properties.Reported["floatSwitchTwo"] = "DESIREDOFF222";
 
-            twin.Properties.Reported["floatSwitchTwo"] = "REPORTEDOFF3333";
+            //ledPin = (desiredProperties["floatSwitchTwo"].ToString() == "ON") ? 1 : 5;
+            //desiredProperties["floatSwitchTwo"] = "DESIREDOFF222";
+            //desiredProperties["floatSwitchTwo"] = "REPORTEDOFF3333";
 
-            registryManager.UpdateTwinAsync("MyAzureID2", twin, "AAAAAAAAAFY=").GetAwaiter();
+            //registryManager.UpdateTwinAsync("MyAzureID2", twin, "AAAAAAAAAFY=").GetAwaiter();
+            // Set reported properties based on actual device settings
+            TwinCollection reportedProperties = new TwinCollection();
+            reportedProperties["floatSwitchTwo"] = "DESIREDOFF222";
+
+           await MyMain();
+
+            // Update device twin stored in the cloud
+            //await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties);
+
+//            await myDeviceClient.SetMethodHandlerAsync("SoundAlarm", SoundAlarm, null);
+
+ 
 
             MainViewModel();
 
@@ -143,7 +170,140 @@ namespace ConsoleApp1
 
         private readonly string topicHostname = new Uri(topicEndpoint).Host;
 
-#if DEBUG
+
+
+        // connection string to the Event Hubs namespace
+        private const string connectionString = "Endpoint=sb://myrasppieventhub.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=robQJ80UX3gkNgw+4UFtATTLAVQU6JOL2/v2vMrSuTY=";
+
+        // name of the event hub
+        private const string eventHubName = "myrasppieventhubmessagegrp";
+
+        // number of events to be sent to the event hub
+        private const int numOfEvents = 3;
+
+
+        // The Event Hubs client types are safe to cache and use as a singleton for the lifetime
+        // of the application, which is best practice when events are being published or read regularly.
+        static EventHubProducerClient producerClient;
+        private bool sendEventData = true;
+
+
+
+        public async Task MyMain()
+        {
+            // Create a producer client that you can use to send events to an event hub
+            //producerClient = new EventHubBufferedProducerClient(connectionString, eventHubName);
+            producerClient = new EventHubProducerClient(connectionString, eventHubName);
+
+            // The failure handler is required and invoked after all allowable
+            // retries were applied.
+
+            //producerClient.SendEventBatchFailedAsync += args =>
+            //{
+            //    Debug.WriteLine($"Publishing failed for { args.EventBatch.Count } events.  Error: '{ args.Exception.Message }'");
+            //    return Task.CompletedTask;
+            //};
+
+            //// The success handler is optional.
+
+            //producerClient.SendEventBatchSucceededAsync += args =>
+            //{
+            //    Debug.WriteLine($"{ args.EventBatch.Count } events were published to partition: '{ args.PartitionId }.");
+            //    return Task.CompletedTask;
+            //};
+
+            EventDataBatch generateData;
+            List<string> device = new List<string>();
+
+ 
+            try
+            {
+                var eventData = new EventData("Hello, Event Hubs!")
+                {
+                    MessageId = "H1",
+                    ContentType = "application/json"
+                };
+
+                eventData.Properties.Add("EventType", "com.microsoft.samples.hello-event");
+                eventData.Properties.Add("priority", 1);
+                eventData.Properties.Add("score", 9.0);
+
+                device.Add("Mobile");
+                
+                int partitionId = 0;
+                foreach (var eachDevice in device)
+                {
+                    StringBuilder strBuilder = new StringBuilder();
+                    var batchOptions = new CreateBatchOptions()
+                    {
+                        PartitionId = partitionId.ToString()
+                    };
+                    generateData = producerClient.CreateBatchAsync(batchOptions).Result;
+                    strBuilder.AppendFormat("Search triggered for iPhone 21 from decive {0} ", eachDevice);
+                    var eveData = new EventData(Encoding.UTF8.GetBytes(strBuilder.ToString()));
+                    // All value should be dynamic  
+                    eveData.Properties.Add("UserId", "UserId");
+                    eveData.Properties.Add("Location", "Mike Egaan " + DateTime.Now.ToString());
+                    eveData.Properties.Add("DeviceType", eachDevice);
+
+                    eveData.Properties.Add("MyTaskDelay", MyTaskDelay);//
+                    eveData.Properties.Add("SendEventData", true);
+#if RASPBERRY
+                    eveData.Properties.Add("NH", PinValueFloatSwitchHigh.ToString());
+                    eveData.Properties.Add("NM", PinValueFloatSwitchMedium.ToString());
+                    eveData.Properties.Add("NL", PinValueFloatSwitchLow.ToString());
+                    eveData.Properties.Add("OH", PinvalueFloatSwitchIndicatorLedLow.ToString());
+                    eveData.Properties.Add("OM", PinvalueFloatSwitchIndicatorLedMedium.ToString());
+                    eveData.Properties.Add("OL", PinvalueFloatSwitchIndicatorLedHigh.ToString());
+#else
+                    eveData.Properties.Add("NH", "HIGH");
+                    eveData.Properties.Add("NM", "HIGH");
+                    eveData.Properties.Add("NL", "HIGH");
+                    eveData.Properties.Add("OH", "HIGH");
+                    eveData.Properties.Add("OM", "HIGH");
+                    eveData.Properties.Add("OL", "HIGH");
+#endif
+                     generateData.TryAdd(eveData);
+                    producerClient.SendAsync(generateData).Wait();
+                    //Reset partitionId as it can be 0 or 1 as we have define in azure event hub  
+                    partitionId++;
+                    if (partitionId > 1) partitionId = 0;
+
+                }
+
+                Console.WriteLine("Sending EventDataBatch " + DateTime.Now.ToString());
+                //await producerClient.EnqueueEventAsync(eventData);
+
+                //eventData = new EventData("Goodbye, Event Hubs!")
+                //{
+                //    MessageId = "G1",
+                //    ContentType = "application/json"
+                //};
+
+                //eventData.Properties.Add("EventType", "com.microsoft.samples.goodbye-event");
+                //eventData.Properties.Add("priority", "17");
+                //eventData.Properties.Add("blob", true);
+
+                //await producerClient.EnqueueEventAsync(eventData);
+                //await producerClient.SendAsync((IEnumerable<EventData>)eventData);
+            }
+            catch (Exception exp)
+            {
+                Console.WriteLine("Error occruied {0}. Try again later", exp.Message);
+            }
+
+           
+        }
+
+
+        public void MethodSendEventData(Boolean value)
+        {
+            SendEventData = value;
+
+        }
+
+
+#if RASPBERRY
         public GpioController Gpio { get; set; } = new GpioController();
 
 #else
@@ -202,12 +362,12 @@ namespace ConsoleApp1
         private PinValue pinvalueFloatSwitchIndicatorLedMedium;
         private PinValue pinvalueFloatSwitchIndicatorLedHigh;
 
-        public PinValue PinValueFloatSwitchLow { get { return pinValueFloatSwitchLow; } set { pinValueFloatSwitchLow = value; } }
-        public PinValue PinValueFloatSwitchMedium { get => pinValueFloatSwitchMedium; set => pinValueFloatSwitchMedium = value; }
-        public PinValue PinValueFloatSwitchHigh { get => pinValueFloatSwitchHigh; set => pinValueFloatSwitchHigh = value; }
-        public PinValue PinvalueFloatSwitchIndicatorLedLow { get => pinvalueFloatSwitchIndicatorLedLow; set => pinvalueFloatSwitchIndicatorLedLow = value; }
-        public PinValue PinvalueFloatSwitchIndicatorLedMedium { get => pinvalueFloatSwitchIndicatorLedMedium; set => pinvalueFloatSwitchIndicatorLedMedium = value; }
-        public PinValue PinvalueFloatSwitchIndicatorLedHigh { get => pinvalueFloatSwitchIndicatorLedHigh; set => pinvalueFloatSwitchIndicatorLedHigh = value; }
+        public PinValue PinValueFloatSwitchLow { get { return pinValueFloatSwitchLow; } set { pinValueFloatSwitchLow = value; RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchMedium { get { return pinValueFloatSwitchMedium; } set { pinValueFloatSwitchMedium = value; RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchHigh { get { return pinValueFloatSwitchHigh; }  set { pinValueFloatSwitchHigh = value; RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedLow { get { return pinvalueFloatSwitchIndicatorLedLow; } set { pinvalueFloatSwitchIndicatorLedLow = value; RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedMedium { get { return pinvalueFloatSwitchIndicatorLedMedium; } set { pinvalueFloatSwitchIndicatorLedMedium = value; RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedHigh { get { return pinvalueFloatSwitchIndicatorLedHigh; } set { pinvalueFloatSwitchIndicatorLedHigh = value; RaisePropertyChanged(); } }
 
 #endregion
 
@@ -239,7 +399,7 @@ namespace ConsoleApp1
 
 #region Display Fields
 
-        #endregion
+#endregion
 
 #region btnToggel
 
@@ -265,7 +425,7 @@ namespace ConsoleApp1
             set { btnToggleLowIsChecked = value; RaisePropertyChanged(); }
         }
 
-        #endregion
+#endregion
 
         //private static int ButtonPinNumber;
 
@@ -334,7 +494,7 @@ namespace ConsoleApp1
         }
 
         public object TextBlockSlider { get; set; }
-        #endregion
+#endregion
 
 #region switchEventAlerttimeDifference
 
@@ -383,7 +543,7 @@ namespace ConsoleApp1
             set { switchEventAlertTimeDifferenceHighReset = value; RaisePropertyChanged(); }
         }
 
-        #endregion
+#endregion
 
 #region alertTriggerd
 
@@ -451,6 +611,8 @@ namespace ConsoleApp1
             set { alertTriggeredTimeReset = value; RaisePropertyChanged(); }
         }
 
+        public bool SendEventData { get => sendEventData; set => sendEventData = value; }
+
         //public MainPage RootPage { get => rootPage; set => rootPage = value; }
 
         #endregion
@@ -488,6 +650,7 @@ namespace ConsoleApp1
                 gpioController.SetPinMode(pin_FloatSwitchIndicatorLedLow, PinMode.Output);
                 gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.Low);
                 gpioController.RegisterCallbackForPinValueChangedEvent(pin_FloatSwitchIndicatorLedLow, PinEventTypes.Falling, Pin_FloatSwitchIndicatorLedLow_ValueChanged);
+                //gpioController.RegisterCallbackForPinValueChangedEvent(pin_FloatSwitchIndicatorLedLow, PinEventTypes.Falling, Pin_FloatSwitchIndicatorLedLow_ValueChanged);
                 //Pin_FloatSwitchIndicatorLedLow = GpioController.OpenPin(23);
                 //Pin_FloatSwitchIndicatorLedLow.SetDriveMode(GpioPinDriveMode.Output);
                 //Pin_FloatSwitchIndicatorLedLow.DebounceTimeout = TimeSpan.FromSeconds(1);
@@ -557,7 +720,7 @@ namespace ConsoleApp1
         }
 
 
-        #region FloatSwitchesValueChanged
+#region FloatSwitchesValueChanged
         private void Pin_FloatSwitchLow_ValueChanged(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
 
@@ -568,14 +731,8 @@ namespace ConsoleApp1
                 // Cool Stuff                    PinValueChangedEventArgs pinValueChangedEventArgs1 = new(pinValueChangedEventArgs.ChangeType,pin_FloatSwitchHigh);
                 // Cool Stuff                    Pin_FloatSwitchIndicatorLedLow_ValueChanged(sender, pinValueChangedEventArgs: pinValueChangedEventArgs1);
 
-
-
-
-
-
-
-
                 PinValueFloatSwitchLow = gpioController.Read(pinValueChangedEventArgs.PinNumber);
+               
                 Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + PinValueFloatSwitchLow);
 
                 try
@@ -585,7 +742,7 @@ namespace ConsoleApp1
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
 
-                    if (PinValueFloatSwitchLow == PinValue.High)  // ***  Floatswitch Open
+                    if ( PinValueFloatSwitchLow == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
                         //PirLEDStatus = true;
@@ -634,8 +791,8 @@ namespace ConsoleApp1
 
             try
             {
-                pinvalueFloatSwitchIndicatorLedLow = gpioController.Read(pinValueChangedEventArgs.PinNumber);
-                Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + pinvalueFloatSwitchIndicatorLedLow);
+                PinvalueFloatSwitchIndicatorLedLow = gpioController.Read(pinValueChangedEventArgs.PinNumber);
+                Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + PinvalueFloatSwitchIndicatorLedLow);
 
                 try
                 {
@@ -644,7 +801,7 @@ namespace ConsoleApp1
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
 
-                    if (pinvalueFloatSwitchIndicatorLedLow == PinValue.High)  // ***  Floatswitch Open
+                    if (PinvalueFloatSwitchIndicatorLedLow == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
                         //PirLEDStatus = true;
@@ -749,8 +906,8 @@ namespace ConsoleApp1
         {
             try
             {
-                pinvalueFloatSwitchIndicatorLedMedium = gpioController.Read(pinValueChangedEventArgs.PinNumber);
-                Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + pinvalueFloatSwitchIndicatorLedMedium);
+                PinvalueFloatSwitchIndicatorLedMedium = gpioController.Read(pinValueChangedEventArgs.PinNumber);
+                Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + PinvalueFloatSwitchIndicatorLedMedium);
 
                 try
                 {
@@ -759,7 +916,7 @@ namespace ConsoleApp1
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
 
-                    if (pinvalueFloatSwitchIndicatorLedMedium == PinValue.High)  // ***  Floatswitch Open
+                    if (PinvalueFloatSwitchIndicatorLedMedium == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
                         //PirLEDStatus = true;
@@ -864,8 +1021,8 @@ namespace ConsoleApp1
         {
             try
             {
-                pinvalueFloatSwitchIndicatorLedHigh = gpioController.Read(pinValueChangedEventArgs.PinNumber);
-                Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + pinvalueFloatSwitchIndicatorLedHigh);
+                PinvalueFloatSwitchIndicatorLedHigh = gpioController.Read(pinValueChangedEventArgs.PinNumber);
+                Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + PinvalueFloatSwitchIndicatorLedHigh);
 
                 try
                 {
@@ -874,7 +1031,7 @@ namespace ConsoleApp1
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
 
-                    if (pinvalueFloatSwitchIndicatorLedHigh == PinValue.High)  // ***  Floatswitch Open
+                    if (PinvalueFloatSwitchIndicatorLedHigh == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
                         //PirLEDStatus = true;
@@ -917,9 +1074,10 @@ namespace ConsoleApp1
             throw new NotImplementedException();
         }
 
-        #endregion
+#endregion
 
-        public async Task<Task> FloatSwitchStatusAlertWatch()
+        //public async Task<Task> FloatSwitchStatusAlertWatch()
+        public async void FloatSwitchStatusAlertWatch()
         {
             bool AlertTriggeredReset = false;
             bool AlertTriggeredMiddle = false;
@@ -947,8 +1105,8 @@ namespace ConsoleApp1
             AlertTriggeredTimeTop = "";
             AlertTriggeredTimeErr = "";
 
-            while (true)
-            {
+ //           while (true)
+//            {
                 try
                 {
                     SwitchEventTime = DateTime.Now;
@@ -1133,12 +1291,14 @@ namespace ConsoleApp1
 
                     // this task runs all the time with Delay as defined below
                     //Thread.Sleep((Int32)(MyTaskDelay * 1000));
-                    await Task.Delay((Int32)(MyTaskDelay * 1000));//
+                    //await Task.Delay((Int32)(MyTaskDelay * 1000));//
                 }
 
-            }
+//            }
 
         }
+
+
 
         /// <summary>
         /// Send events to Event Grid Topic.
@@ -1147,6 +1307,7 @@ namespace ConsoleApp1
         {
             string msgEmailSub = (StrFloatSwitchStatusMsg.Length > 0) ? StrFloatSwitchStatusMsg : "This email is being generated via a Test Event from the application";
 
+            
             //List<UserDetails> details = new List<UserDetails>();
             List<EventGridEvent> eventsList = new();
             eventsList.Add(new EventGridEvent()
@@ -1211,7 +1372,7 @@ namespace ConsoleApp1
 
         }
 
-        #region PropertChangeEvents
+#region PropertChangeEvents
 
         void RaisePropertyChanged([CallerMemberName] string prop = null)
         {
@@ -1227,7 +1388,7 @@ namespace ConsoleApp1
             if (pinValueChangedEventArgs.ChangeType == PinEventTypes.Rising)
             {
 
-#if DEBUG
+#if RASPBERRY
 
                 if (Gpio.Read((int)sender) == PinValue.Low)
                 {
@@ -1282,10 +1443,10 @@ namespace ConsoleApp1
         //    return eventsList;
         //}
 
-        #endregion
+#endregion
 
-        //public async Task SendDeviceToCloudMessagesAsync()
-        public async Task<Task> SendDeviceToCloudMessagesAsync()
+        public async void SendDeviceToCloudMessagesAsync()
+        //public async Task<Task> SendDeviceToCloudMessagesAsync()
         {
             try
             {
@@ -1294,8 +1455,8 @@ namespace ConsoleApp1
                 var telemetryDataPoint = new
                 {
                     deviceId = DeviceId,
-                    //message = "Hello"
-                    message = GpioMsg
+                    message = "Hello  " + DateTime.Now.ToString()
+                    //message = GpioMsg
                 };
                 var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
                 var message = new Microsoft.Azure.Devices.Client.Message(Encoding.ASCII.GetBytes(messageString));
@@ -1318,14 +1479,14 @@ namespace ConsoleApp1
                 Debug.WriteLine("{0} > Sending message: {1}", DateTime.Now, messageString);
                 Console.WriteLine("SendDeviceToCloudMessagesAsync");
 
-                IsAzureConnected = true;
+                //IsAzureConnected = true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(ex.Message);
             }
 
-            return Task.CompletedTask;
+            //return Task.CompletedTask;
         }
 
         public async Task RunSampleAsync()
@@ -1352,6 +1513,62 @@ namespace ConsoleApp1
             //await Task.Delay(30 * 1000);
         }
 
+        //IOT Device
+        //Process Message On Device
+        //Once we have sent our message, we will need to process it on our device.For this, we are going to update the client application of our simulated engine by adding the following method.
+        private static async void ReceiveMessageFromCloud(object sender, DoWorkEventArgs e)
+
+        {
+            // Continuously wait for messages
+            while (true)
+            {
+                //var message = await client.ReceiveAsync();
+                var message = await myDeviceClient.ReceiveAsync(); 
+                // Check if message was received
+                if (message == null)
+                {
+                    continue;
+                }
+                try
+                {
+                    if (message.Properties.ContainsKey("StartFans") && message.Properties["StartFans"] == "true")
+                    {
+                        // This would start the fans
+                        Console.WriteLine("Fans started!");
+                    }
+                    //await client.CompleteAsync(message);
+                    await myDeviceClient.CompleteAsync(message);
+                }
+                catch (Exception)
+                {
+                    // Send to deadletter
+                    await  myDeviceClient.RejectAsync(message);
+                    //await client.RejectAsync(message);
+                }
+            }
+        }
+
+        //IOT Device
+
+        //And in our simulated device, implement the SoundAlarm remote method which is being called.
+        private static Task<MethodResponse> SoundAlarm(MethodRequest methodRequest, object userContext)
+
+        {
+            // On a real engine this would sound the alarm as well as show the message
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Alarm sounded with message: {JObject.Parse(methodRequest.DataAsJson).GetValue("message").Value<string>()}! Type yes to acknowledge.");
+            Console.ForegroundColor = ConsoleColor.White;
+
+            var response = JsonConvert.SerializeObject(new { acknowledged = Console.ReadLine() == "yes" });
+
+            return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(response), 200));
+
+        }
+
+
+
+
+
         public async Task<Task> ReceiveCloudToDeviceMessageAsync()
         {
             CloudToDeviceLog = "Receiving events...";
@@ -1366,12 +1583,14 @@ namespace ConsoleApp1
                 Microsoft.Azure.Devices.Client.Message receivedMessage = await myDeviceClient.ReceiveAsync();
                 if (receivedMessage == null) continue;
 
+                //receivedMessage.Properties["MyTestProp"]
+
                 var msg = Encoding.ASCII.GetString(receivedMessage.GetBytes());
                 CloudToDeviceLog += "\nReceived message: " + msg;
 
                 if (msg == "on")
                 {
-#if DEBUG
+#if RASPBERRY
                     Gpio.Write(pin_LedPin, PinValue.Low);
                     //LedPin.Write(PinValue.Low);
 #endif
@@ -1379,7 +1598,7 @@ namespace ConsoleApp1
 
                 if (msg == "off")
                 {
-#if DEBUG
+#if RASPBERRY
                     Gpio.Write(pin_LedPin, PinValue.High);
                     //LedPin.Write(PinValue.High);
 #endif
@@ -1387,7 +1606,7 @@ namespace ConsoleApp1
 
                 if (msg == "PIR_Activated")
                 {
-#if DEBUG
+#if RASPBERRY
                     Gpio.Write(pin_PIR_Pin, PinValue.High);
                     //PIR_Pin.Write(PinValue.High);
 #endif
@@ -1395,7 +1614,7 @@ namespace ConsoleApp1
 
                 if (msg == "PIR_Deactivated")
                 {
-#if DEBUG
+#if RASPBERRY
                     Gpio.Write(pin_PIR_Pin, PinValue.Low);
                     //PIR_Pin.Write(PinValue.Low);
 #endif

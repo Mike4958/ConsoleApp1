@@ -1,17 +1,11 @@
-﻿#define NOTRASPBERRY2
-
+﻿
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 //using GalaSoft.MvvmLight.Ioc;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting.Systemd;
-using Microsoft.Extensions.Logging;
 //using Windows.UI.Core;
 
 namespace ConsoleApp1
@@ -19,14 +13,12 @@ namespace ConsoleApp1
     internal class Program
     {
 
-        
-
-        private static void Main(string[] args)
+        public static void Main(string[] args)
         {
             Console.WriteLine("Hello World!");
 
 
-#if NOTRASPBERRY2
+#if RASPBERRY
             Console.WriteLine("Waiting 1.5 minutes to allow Wifi Connection");
             Thread.Sleep(90000);
 #endif
@@ -36,27 +28,54 @@ namespace ConsoleApp1
             //Task MyTask = MyClass11.FloatSwitchStatusAlertWatch();
 
             // send device connected message
-            _ = myClass11.SendDeviceToCloudMessagesAsync();
+            //_ = myClass11.SendDeviceToCloudMessagesAsync();
             //    //await _vm.RunSampleAsync();
             //    //await _vm.SendEventsToTopic();
 
             // receive remote light control events
             _ = myClass11.ReceiveCloudToDeviceMessageAsync();
-            _ = myClass11.FloatSwitchStatusAlertWatch();
+            //_ = myClass11.FloatSwitchStatusAlertWatch();
+           // _ = myClass11.MyMain();
+
 
             Thread.Sleep(10000);
 
             myClass11.MyTaskDelay = 10;
- 
+
             while (true)
             {
-            
-                //MyClass11.SendDeviceToCloudMessagesAsync();
-                Console.WriteLine("Still Running");
+                try
+                {
+                    //MyClass11.SendDeviceToCloudMessagesAsync();
+                    //Console.WriteLine("Still Running");
 
-                //Thread.Sleep(2000);
-                Task.Delay(2000)
-                    .Wait();
+
+                    //Thread.Sleep(60000);
+                    //Task.Delay(15000)
+                    //    .Wait();
+
+                    //Task.Delay((Int32)(myClass11.MyTaskDelay * 1000));
+                    Thread.Sleep((Int32)(myClass11.MyTaskDelay * 1000));
+
+
+                    myClass11.FloatSwitchStatusAlertWatch();
+
+                    myClass11.SendDeviceToCloudMessagesAsync();
+
+                    if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
+                    
+
+                }
+                catch (Exception ex)
+                {
+
+                }
+                finally
+                {
+                    Console.WriteLine("Still Running " + DateTime.Now.ToString());
+
+                };
+                //_ = myClass11.MyMain();
 
             }
 
@@ -76,16 +95,16 @@ namespace ConsoleApp1
             //  };
 
 
-
+            Console.WriteLine(args.Length);
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-     Host.CreateDefaultBuilder(args)
-         .UseSystemd()
-         .ConfigureServices((hostContext, services) =>
-         {
-             services.AddHostedService<Worker>();
-         });
+     //   public static IHostBuilder CreateHostBuilder(string[] args) =>
+     //Host.CreateDefaultBuilder(args)
+     //    .UseSystemd()
+     //    .ConfigureServices((hostContext, services) =>
+     //    {
+     //        services.AddHostedService<Worker>();
+     //    });
 
 
     }
