@@ -166,6 +166,9 @@ namespace ConsoleApp1
 
         private static readonly TopicCredentials topicCredentials = new(topicKey);
         private static readonly EventGridClient client = new(topicCredentials);
+        
+        //private static readonly EventGrid
+
         #endregion
 
         private readonly string topicHostname = new Uri(topicEndpoint).Host;
@@ -174,9 +177,11 @@ namespace ConsoleApp1
 
         // connection string to the Event Hubs namespace
         private const string connectionString = "Endpoint=sb://myrasppieventhub.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=robQJ80UX3gkNgw+4UFtATTLAVQU6JOL2/v2vMrSuTY=";
+        //private const string connectionString = "Endpoint=sb://ihsuprodbnres007dednamespace.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=";
 
         // name of the event hub
         private const string eventHubName = "myrasppieventhubmessagegrp";
+        //private const string eventHubName = "iothub-ehub-myiothubfe-1362574-279fec4c10";
 
         // number of events to be sent to the event hub
         private const int numOfEvents = 3;
@@ -195,6 +200,7 @@ namespace ConsoleApp1
             //producerClient = new EventHubBufferedProducerClient(connectionString, eventHubName);
             producerClient = new EventHubProducerClient(connectionString, eventHubName);
 
+            
             // The failure handler is required and invoked after all allowable
             // retries were applied.
 
@@ -263,13 +269,15 @@ namespace ConsoleApp1
                     eveData.Properties.Add("OM", "HIGH");
                     eveData.Properties.Add("OL", "HIGH");
 #endif
-                     generateData.TryAdd(eveData);
-                    producerClient.SendAsync(generateData).Wait();
+                    generateData.TryAdd(eveData);
+                    await producerClient.SendAsync(generateData).ConfigureAwait(false);
                     //Reset partitionId as it can be 0 or 1 as we have define in azure event hub  
                     partitionId++;
                     if (partitionId > 1) partitionId = 0;
 
                 }
+
+                Thread.Sleep((Int32)(1 * 1000));
 
                 Console.WriteLine("Sending EventDataBatch " + DateTime.Now.ToString());
                 //await producerClient.EnqueueEventAsync(eventData);
@@ -1074,10 +1082,10 @@ namespace ConsoleApp1
             throw new NotImplementedException();
         }
 
-#endregion
+        #endregion
 
         //public async Task<Task> FloatSwitchStatusAlertWatch()
-        public async void FloatSwitchStatusAlertWatch()
+        public void FloatSwitchStatusAlertWatch()
         {
             bool AlertTriggeredReset = false;
             bool AlertTriggeredMiddle = false;
@@ -1105,196 +1113,196 @@ namespace ConsoleApp1
             AlertTriggeredTimeTop = "";
             AlertTriggeredTimeErr = "";
 
- //           while (true)
-//            {
-                try
+            //           while (true)
+            //            {
+            try
+            {
+                SwitchEventTime = DateTime.Now;
+
+                if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == false)
                 {
-                    SwitchEventTime = DateTime.Now;
+                    // Condition1 is true.
+                    // Sub Pump is working
 
-                    if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == false)
+                    StrFloatSwitchStatusMsg = "All Float Switches, Low Time: " + DateTime.Now.ToString();
+                    TextBlockString = StrFloatSwitchStatusMsg;
+
+                    if (AlertTriggeredMiddle == true | AlertTriggeredTop == true | AlertTriggeredErr == true)
                     {
-                        // Condition1 is true.
-                        // Sub Pump is working
+                        AlertTriggeredMiddle = false;
+                        AlertTriggeredTop = false;
+                        AlertTriggeredErr = false;
 
-                        StrFloatSwitchStatusMsg = "All Float Switches, Low Time: " + DateTime.Now.ToString();
-                        TextBlockString = StrFloatSwitchStatusMsg;
+                        //SwitchEventAlertTimeReset = SwitchEventTime;
+                        //if(AlertTriggeredReset == false) { AlertTriggeredTimeResetLast = AlertTriggeredTimeReset; }
+                        SwitchEventAlertTimeReset = SwitchEventTime;
+                        AlertTriggeredReset = true;
+                        AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
+                        AlertDailyCounterReset += 1;
 
-                        if (AlertTriggeredMiddle == true | AlertTriggeredTop == true | AlertTriggeredErr == true)
-                        {
-                            AlertTriggeredMiddle = false;
-                            AlertTriggeredTop = false;
-                            AlertTriggeredErr = false;
-
-                            //SwitchEventAlertTimeReset = SwitchEventTime;
-                            //if(AlertTriggeredReset == false) { AlertTriggeredTimeResetLast = AlertTriggeredTimeReset; }
-                            SwitchEventAlertTimeReset = SwitchEventTime;
-                            AlertTriggeredReset = true;
-                            AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
-                            AlertDailyCounterReset += 1;
-
-                            AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
-
-                            SendEventsToTopic();
-                        }
-                        else
-                        {
-                            isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceReset, out StrToInt);
-                            isParsable = false; // remove this line after interval.minutes is greater than 60 minutes is fighured out
-
-                            if (isParsable)
-                            {
-                                //SwitchEventAlertTimeMiddle = new DateTime();
-
-                                TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeReset;
-                                if (interval.Minutes >= StrToInt)
-                                {
-
-                                    // this needs worked when interval.minutes is greater than 60 minutes 
-                                    //AlertTriggeredReset = false;
-                                }
-
-                                if (AlertTriggeredReset == false)
-                                {
-                                    AlertTriggeredReset = true;
-                                    SwitchEventAlertTimeReset = SwitchEventTime;
-                                    AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
-                                    AlertDailyCounterReset += 1;
-
-                                    AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
-                                    SendEventsToTopic();
-                                }
-
-                            }
-                        }
-
-                    }
-
-                    if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == false)
-                    {
-                        // Condition1 is false and Condition2 is true.
-                        // Float switch Medium appears to have fault and Float Switch Hign sees potential flooding
-                        // Send Alarm - Total Failue
-
-                        StrFloatSwitchStatusMsg = "Float switch Medium appears to indicate potential flooding;  Time: " + DateTime.Now.ToString();
-                        TextBlockString = StrFloatSwitchStatusMsg;
-
-                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceMiddle, out StrToInt);
-                        if (isParsable)
-                        {
-
-                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeMiddle;
-                            if (interval.Minutes >= StrToInt)
-                            {
-                                AlertTriggeredMiddle = false;
-                            }
-                            if (AlertTriggeredMiddle == false)
-                            {
-                                AlertTriggeredMiddle = true;
-                                SwitchEventAlertTimeMiddle = SwitchEventTime;
-                                AlertTriggeredTimeMiddleLast = AlertTriggeredTimeMiddle;
-                                AlertDailyCounterMiddle += 1;
-
-                                AlertTriggeredTimeMiddle = SwitchEventAlertTimeMiddle.ToString();
-                                SendEventsToTopic();
-                            }
-
-                        }
-                    }
-
-                    if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == true)
-                    {
-                        // Condition1 and Condition2 are false. Condition3 and Condition4 are true.
-                        // Float switch Medium indicationg Initial failure
-                        // Send Alarm - Initial Failue
-
-                        StrFloatSwitchStatusMsg = "Float switch Medium & High are indicating Major flooding;  Time: " + DateTime.Now.ToString();
-                        TextBlockString = StrFloatSwitchStatusMsg;
-
-                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceTop, out StrToInt);
-                        if (isParsable)
-                        {
-                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeTop;
-                            if (interval.Minutes >= StrToInt)
-                            {
-                                AlertTriggeredTop = false;
-                            }
-                            if (AlertTriggeredTop == false)
-                            {
-                                AlertTriggeredTop = true;
-                                SwitchEventAlertTimeTop = SwitchEventTime;
-                                AlertTriggeredTimeTopLast = AlertTriggeredTimeTop;
-                                AlertDailyCounterHigh += 1;
-
-                                AlertTriggeredTimeTop = SwitchEventAlertTimeTop.ToString();
-                                SendEventsToTopic();
-                            }
-
-                        }
-                    }
-
-                    if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == true)
-                    {
-                        // Condition1, Condition2, and Condition3 are false.
-                        StrFloatSwitchStatusMsg = "Not Sure here;  Time: " + DateTime.Now.ToString();
-                        TextBlockString = StrFloatSwitchStatusMsg;
-
-                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceHighErr, out StrToInt);
-                        if (isParsable)
-                        {
-                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeErr;
-                            if (interval.Minutes >= StrToInt)
-                            {
-                                AlertTriggeredErr = false;
-                            }
-
-                            if (AlertTriggeredErr == false)
-                            {
-                                AlertTriggeredErr = true;
-                                SwitchEventAlertTimeErr = SwitchEventTime;
-                                AlertTriggeredTimeErrLast = AlertTriggeredTimeErr;
-                                AlertDailyCounterErr += 1;
-
-                                AlertTriggeredTimeErr = SwitchEventAlertTimeErr.ToString();
-                                SendEventsToTopic();
-                            }
-                        }
-                    }
-
-                    if (YesterdayDay != SwitchEventTime.Day.ToString() & "8" != SwitchEventTime.Hour.ToString()) // 'Hour' defaults to 24-hour clock0800 AM 
-                    {   // Send daily Alert Status Count Email
-                        YesterdayDay = SwitchEventTime.Day.ToString();
-
-                        StrFloatSwitchStatusMsg = "Daily Report;  Time: " + DateTime.Now.ToString();
-                        TextBlockString = StrFloatSwitchStatusMsg;
-
-                        AlertDailyCounterReset = 0;
-                        AlertDailyCounterLow = 0;
-                        AlertDailyCounterMiddle = 0;
-                        AlertDailyCounterHigh = 0;
-                        AlertDailyCounterErr = 0;
+                        AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
 
                         SendEventsToTopic();
+                    }
+                    else
+                    {
+                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceReset, out StrToInt);
+                        isParsable = false; // remove this line after interval.minutes is greater than 60 minutes is fighured out
 
+                        if (isParsable)
+                        {
+                            //SwitchEventAlertTimeMiddle = new DateTime();
+
+                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeReset;
+                            if (interval.Minutes >= StrToInt)
+                            {
+
+                                // this needs worked when interval.minutes is greater than 60 minutes 
+                                //AlertTriggeredReset = false;
+                            }
+
+                            if (AlertTriggeredReset == false)
+                            {
+                                AlertTriggeredReset = true;
+                                SwitchEventAlertTimeReset = SwitchEventTime;
+                                AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
+                                AlertDailyCounterReset += 1;
+
+                                AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
+                                SendEventsToTopic();
+                            }
+
+                        }
                     }
 
                 }
-                catch (Exception)
+
+                if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == false)
                 {
-                    throw;
+                    // Condition1 is false and Condition2 is true.
+                    // Float switch Medium appears to have fault and Float Switch Hign sees potential flooding
+                    // Send Alarm - Total Failue
+
+                    StrFloatSwitchStatusMsg = "Float switch Medium appears to indicate potential flooding;  Time: " + DateTime.Now.ToString();
+                    TextBlockString = StrFloatSwitchStatusMsg;
+
+                    isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceMiddle, out StrToInt);
+                    if (isParsable)
+                    {
+
+                        TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeMiddle;
+                        if (interval.Minutes >= StrToInt)
+                        {
+                            AlertTriggeredMiddle = false;
+                        }
+                        if (AlertTriggeredMiddle == false)
+                        {
+                            AlertTriggeredMiddle = true;
+                            SwitchEventAlertTimeMiddle = SwitchEventTime;
+                            AlertTriggeredTimeMiddleLast = AlertTriggeredTimeMiddle;
+                            AlertDailyCounterMiddle += 1;
+
+                            AlertTriggeredTimeMiddle = SwitchEventAlertTimeMiddle.ToString();
+                            SendEventsToTopic();
+                        }
+
+                    }
                 }
 
-                finally
+                if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == true)
                 {
-                    Console.WriteLine("FloatSwitchStatusAlertWatch - Still Running " + DateTime.Now.ToString());
-                    //Task task3 = InitializeDeviceState();
+                    // Condition1 and Condition2 are false. Condition3 and Condition4 are true.
+                    // Float switch Medium indicationg Initial failure
+                    // Send Alarm - Initial Failue
 
+                    StrFloatSwitchStatusMsg = "Float switch Medium & High are indicating Major flooding;  Time: " + DateTime.Now.ToString();
+                    TextBlockString = StrFloatSwitchStatusMsg;
 
-                    // this task runs all the time with Delay as defined below
-                    //Thread.Sleep((Int32)(MyTaskDelay * 1000));
-                    //await Task.Delay((Int32)(MyTaskDelay * 1000));//
+                    isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceTop, out StrToInt);
+                    if (isParsable)
+                    {
+                        TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeTop;
+                        if (interval.Minutes >= StrToInt)
+                        {
+                            AlertTriggeredTop = false;
+                        }
+                        if (AlertTriggeredTop == false)
+                        {
+                            AlertTriggeredTop = true;
+                            SwitchEventAlertTimeTop = SwitchEventTime;
+                            AlertTriggeredTimeTopLast = AlertTriggeredTimeTop;
+                            AlertDailyCounterHigh += 1;
+
+                            AlertTriggeredTimeTop = SwitchEventAlertTimeTop.ToString();
+                            SendEventsToTopic();
+                        }
+
+                    }
                 }
 
-//            }
+                if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == true)
+                {
+                    // Condition1, Condition2, and Condition3 are false.
+                    StrFloatSwitchStatusMsg = "Not Sure here;  Time: " + DateTime.Now.ToString();
+                    TextBlockString = StrFloatSwitchStatusMsg;
+
+                    isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceHighErr, out StrToInt);
+                    if (isParsable)
+                    {
+                        TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeErr;
+                        if (interval.Minutes >= StrToInt)
+                        {
+                            AlertTriggeredErr = false;
+                        }
+
+                        if (AlertTriggeredErr == false)
+                        {
+                            AlertTriggeredErr = true;
+                            SwitchEventAlertTimeErr = SwitchEventTime;
+                            AlertTriggeredTimeErrLast = AlertTriggeredTimeErr;
+                            AlertDailyCounterErr += 1;
+
+                            AlertTriggeredTimeErr = SwitchEventAlertTimeErr.ToString();
+                            SendEventsToTopic();
+                        }
+                    }
+                }
+
+                if (YesterdayDay != SwitchEventTime.Day.ToString() & "8" != SwitchEventTime.Hour.ToString()) // 'Hour' defaults to 24-hour clock0800 AM 
+                {   // Send daily Alert Status Count Email
+                    YesterdayDay = SwitchEventTime.Day.ToString();
+
+                    StrFloatSwitchStatusMsg = "Daily Report;  Time: " + DateTime.Now.ToString();
+                    TextBlockString = StrFloatSwitchStatusMsg;
+
+                    AlertDailyCounterReset = 0;
+                    AlertDailyCounterLow = 0;
+                    AlertDailyCounterMiddle = 0;
+                    AlertDailyCounterHigh = 0;
+                    AlertDailyCounterErr = 0;
+
+                    SendEventsToTopic();
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+
+            finally
+            {
+                Console.WriteLine("FloatSwitchStatusAlertWatch - Still Running " + DateTime.Now.ToString());
+                //Task task3 = InitializeDeviceState();
+
+
+                // this task runs all the time with Delay as defined below
+                //Thread.Sleep((Int32)(MyTaskDelay * 1000));
+                //await Task.Delay((Int32)(MyTaskDelay * 1000));//
+            }
+
+            //            }
 
         }
 
@@ -1305,70 +1313,81 @@ namespace ConsoleApp1
         /// </summary>
         public void SendEventsToTopic()
         {
-            string msgEmailSub = (StrFloatSwitchStatusMsg.Length > 0) ? StrFloatSwitchStatusMsg : "This email is being generated via a Test Event from the application";
-
-            
-            //List<UserDetails> details = new List<UserDetails>();
-            List<EventGridEvent> eventsList = new();
-            eventsList.Add(new EventGridEvent()
+           try
             {
+                string msgEmailSub = (StrFloatSwitchStatusMsg.Length > 0) ? StrFloatSwitchStatusMsg : "This email is being generated via a Test Event from the application";
 
-                Id = Guid.NewGuid().ToString(),
-                EventType = "Subpump.Status.Alert",
-                Data = new ContosoItemReceivedEventData()
+
+                //List<UserDetails> details = new List<UserDetails>();
+                List<EventGridEvent> eventsList = new();
+                eventsList.Add(new EventGridEvent()
                 {
-                    Emailbody = DateTime.Now.ToString("HH:mm:ss") + msgEmailSub,
-                    Emailsubject = FloatSwitchEmailMsg.Length > 0 ? FloatSwitchEmailMsg : "FloatSwitch Status Warning",
-                    //emaildistribution = "eagan_mike@hotmail.com; 8124994801@txt.att.net; 8126987932@vtext.net"
-                    Emaildistribution = EmailDistributionGroup //"eagan_mike@hotmail.com; 8124994801@txt.att.net"
-                },
-                EventTime = DateTime.Now,
-                Subject = "FloatSwitch",
-                DataVersion = "2.0"
-            });
 
-            //userdetails user = new userdetails();
-            //details.Add(new userdetails { emailsubject = "FlostSwitch Status Warning", emailbody = FloatSwitchEmailMsg, eventtime = DateTime.Now.ToString() });
-            FloatSwitchEmailMsg = ""; //JsonConvert.SerializeObject(details);
+                    Id = Guid.NewGuid().ToString(),
+                    EventType = "Subpump.Status.Alert",
+                    Data = new ContosoItemReceivedEventData()
+                    {
+                        Emailbody = DateTime.Now.ToString("HH:mm:ss") + msgEmailSub,
+                        Emailsubject = FloatSwitchEmailMsg.Length > 0 ? FloatSwitchEmailMsg : "FloatSwitch Status Warning",
+                        //emaildistribution = "eagan_mike@hotmail.com; 8124994801@txt.att.net; 8126987932@vtext.net"
+                        Emaildistribution = EmailDistributionGroup //"eagan_mike@hotmail.com; 8124994801@txt.att.net"
+                    },
+                    EventTime = DateTime.Now,
+                    Subject = "FloatSwitch",
+                    DataVersion = "2.0"
+                });
 
-
-            client.PublishEventsAsync(topicHostname, eventsList).GetAwaiter().GetResult();
-            Console.Write("SendEventsToTopic::Published events to Event Grid topic. " + DateTime.Now.ToString());
-            Console.Write(StrFloatSwitchStatusMsg);
-            //Console.ReadLine();
-
-            //var telemetryDataPoint = new
-            //{
-            //    emailbody = "This is a message within my Float Switch Email Warning",
-            //    emailsubject = "FlostSwitch",
-            //    //eventtime = DateTime.Now.ToString()
-            //};
-            //var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
-            //var message = new Message(Encoding.ASCII.GetBytes(messageString));
+                //userdetails user = new userdetails();
+                //details.Add(new userdetails { emailsubject = "FlostSwitch Status Warning", emailbody = FloatSwitchEmailMsg, eventtime = DateTime.Now.ToString() });
+                FloatSwitchEmailMsg = ""; //JsonConvert.SerializeObject(details);
 
 
-            //// Create a HTTP client which we will use to post to the Event Grid Topic
-            //var httpClient = new HttpClient();
+                client.PublishEventsAsync(topicHostname, eventsList).GetAwaiter().GetResult();
+                Console.Write("SendEventsToTopic::Published events to Event Grid topic. " + DateTime.Now.ToString());
+                Console.Write(StrFloatSwitchStatusMsg);
 
-            //// Add key in the request headers
-            //httpClient.DefaultRequestHeaders.Add("aeg-sas-key", KEY);
 
-            //// Event grid expects event data as JSON
-            ////string json = JsonConvert.SerializeObject(FloatSwitchEmailMsg);
+                //Console.ReadLine();
 
-            //// Create request which will be sent to the topic
-            ////StringContent content = new StringContent(JsonConvert.SerializeObject(details), Encoding.UTF8, "application/json");
-            ////var content = new StringContent(JsonConvert.SerializeObject(telemetryDataPoint), Encoding.UTF8, "application/json");
-            //var content = new StringContent(JsonConvert.SerializeObject(telemetryDataPoint), Encoding.UTF8);
+                //var telemetryDataPoint = new
+                //{
+                //    emailbody = "This is a message within my Float Switch Email Warning",
+                //    emailsubject = "FlostSwitch",
+                //    //eventtime = DateTime.Now.ToString()
+                //};
+                //var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
+                //var message = new Message(Encoding.ASCII.GetBytes(messageString));
 
-            //// Send request
-            //Console.WriteLine("Sending event to Event Grid...");
-            //HttpResponseMessage result = await httpClient.PostAsync(TOPIC_ENDPOINT, content);
 
-            //// Show result
-            //Console.WriteLine($"Event sent with result: {result.ReasonPhrase}");
-            //Console.WriteLine();
+                //// Create a HTTP client which we will use to post to the Event Grid Topic
+                //var httpClient = new HttpClient();
 
+                //// Add key in the request headers
+                //httpClient.DefaultRequestHeaders.Add("aeg-sas-key", KEY);
+
+                //// Event grid expects event data as JSON
+                ////string json = JsonConvert.SerializeObject(FloatSwitchEmailMsg);
+
+                //// Create request which will be sent to the topic
+                ////StringContent content = new StringContent(JsonConvert.SerializeObject(details), Encoding.UTF8, "application/json");
+                ////var content = new StringContent(JsonConvert.SerializeObject(telemetryDataPoint), Encoding.UTF8, "application/json");
+                //var content = new StringContent(JsonConvert.SerializeObject(telemetryDataPoint), Encoding.UTF8);
+
+                //// Send request
+                //Console.WriteLine("Sending event to Event Grid...");
+                //HttpResponseMessage result = await httpClient.PostAsync(TOPIC_ENDPOINT, content);
+
+                //// Show result
+                //Console.WriteLine($"Event sent with result: {result.ReasonPhrase}");
+                //Console.WriteLine();
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+
+            finally { }
 
         }
 
@@ -1443,9 +1462,11 @@ namespace ConsoleApp1
         //    return eventsList;
         //}
 
-#endregion
+        #endregion
 
-        public async void SendDeviceToCloudMessagesAsync()
+        CancellationTokenSource source = new CancellationTokenSource();
+
+        public async Task SendDeviceToCloudMessages()
         //public async Task<Task> SendDeviceToCloudMessagesAsync()
         {
             try
@@ -1456,10 +1477,27 @@ namespace ConsoleApp1
                 {
                     deviceId = DeviceId,
                     message = "Hello  " + DateTime.Now.ToString()
-                    //message = GpioMsg
-                };
+
+
+                //message = GpioMsg
+            };
+
+                                
                 var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
                 var message = new Microsoft.Azure.Devices.Client.Message(Encoding.ASCII.GetBytes(messageString));
+
+                message.Properties.Add("NH", "HIGH");
+                message.Properties.Add("NM", "HIGH");
+                message.Properties.Add("NL", "HIGH");
+                message.Properties.Add("OH", "HIGH");
+                message.Properties.Add("OM", "HIGH");
+                message.Properties.Add("OL", "HIGH");
+
+                message.Properties.Add("UserId", "UserId");
+                message.Properties.Add("Location", "Mike Egaan " + DateTime.Now.ToString());
+
+                message.Properties.Add("MyTaskDelay", MyTaskDelay.ToString());//
+                message.Properties.Add("SendEventData", true.ToString());
 
                 // Twin twin = await myDeviceClient.GetTwinAsync();
                 //twin.Properties.Desired
@@ -1475,9 +1513,15 @@ namespace ConsoleApp1
                 //device.ETag = deviceTwin.ETag;
                 //Device result = await registryManager.UpdateDeviceAsync(device, true);
 
-                await myDeviceClient.SendEventAsync(message);
+                CancellationToken token = source.Token;
+
+
+                await myDeviceClient.SendEventAsync(message, token);
+
                 Debug.WriteLine("{0} > Sending message: {1}", DateTime.Now, messageString);
-                Console.WriteLine("SendDeviceToCloudMessagesAsync");
+                Console.WriteLine("SendDeviceToCloudMessagesAsync " + DateTime.Now.ToString());
+
+                Thread.Sleep((Int32)(1 * 1000));
 
                 //IsAzureConnected = true;
             }

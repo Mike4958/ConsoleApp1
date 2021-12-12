@@ -27,21 +27,26 @@ namespace ConsoleApp1
 
             //Task MyTask = MyClass11.FloatSwitchStatusAlertWatch();
 
-            // send device connected message
-            //_ = myClass11.SendDeviceToCloudMessagesAsync();
-            //    //await _vm.RunSampleAsync();
-            //    //await _vm.SendEventsToTopic();
+// send device connected message
+//_ = myClass11.SendDeviceToCloudMessagesAsync();
+//    //await _vm.RunSampleAsync();
+//    //await _vm.SendEventsToTopic();
 
-            // receive remote light control events
-            _ = myClass11.ReceiveCloudToDeviceMessageAsync();
-            //_ = myClass11.FloatSwitchStatusAlertWatch();
-           // _ = myClass11.MyMain();
+// receive remote light control events
 
 
+//_ = myClass11.ReceiveCloudToDeviceMessageAsync();
+
+
+//_ = myClass11.FloatSwitchStatusAlertWatch();
+// _ = myClass11.MyMain();
+
+#if RASPBERRY
             Thread.Sleep(10000);
-
-            myClass11.MyTaskDelay = 10;
-
+            myClass11.MyTaskDelay = 600;
+#else
+            myClass11.MyTaskDelay = 60;
+#endif
             while (true)
             {
                 try
@@ -60,13 +65,13 @@ namespace ConsoleApp1
 
                     myClass11.FloatSwitchStatusAlertWatch();
 
-                    myClass11.SendDeviceToCloudMessagesAsync();
+                   _ = myClass11.SendDeviceToCloudMessages();
 
-                    if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
+                   //if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
                     
 
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
 
                 }
