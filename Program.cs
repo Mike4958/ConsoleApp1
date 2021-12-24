@@ -3,10 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-//using GalaSoft.MvvmLight.Ioc;
 using System.Threading;
 using System.Threading.Tasks;
-//using Windows.UI.Core;
 
 namespace ConsoleApp1
 {
@@ -23,7 +21,7 @@ namespace ConsoleApp1
             Thread.Sleep(90000);
 #endif
 
-            Class1 myClass11 = new Class1();
+            Class1 myClass11 = new();
 
             //Task MyTask = MyClass11.FloatSwitchStatusAlertWatch();
 
@@ -47,29 +45,40 @@ namespace ConsoleApp1
 #else
             myClass11.MyTaskDelay = 60;
 #endif
+
             while (true)
             {
-                try
+                try 
                 {
-                    //MyClass11.SendDeviceToCloudMessagesAsync();
-                    //Console.WriteLine("Still Running");
+                    int iCount = 0;
+                    int iCount2 = 0;
+                    Random r = new();
 
+                    while (iCount < myClass11.MyTaskDelay)
+                    {
 
-                    //Thread.Sleep(60000);
-                    //Task.Delay(15000)
-                    //    .Wait();
+                        iCount += 1;                  
+#if HOURLYCOUNT
+                        // Setting iCount randomly back (-) a few seconds will cause While Loop to last longer. This will allow the HourlyCount vary
+                        iCount2 = r.Next((int)(myClass11.MyTaskDelay * (.1)), (int)(myClass11.MyTaskDelay * (.35)));
+                        iCount += r.Next(1, iCount2);
 
-                    //Task.Delay((Int32)(myClass11.MyTaskDelay * 1000));
-                    Thread.Sleep((Int32)(myClass11.MyTaskDelay * 1000));
+                        Thread.Sleep((Int32)iCount2 * 1000);
+                        _ = myClass11.HourlyCount += 1;
 
+#endif
 
+                        Thread.Sleep((Int32)(1 * 1000));
+                    }
+#if HOURLYCOUNT
+
+#endif
                     myClass11.FloatSwitchStatusAlertWatch();
 
-                   _ = myClass11.SendDeviceToCloudMessages();
 
-                   //if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
-                    
+                    _ = myClass11.SendDeviceToCloudMessages();
 
+                //if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
                 }
                 catch (Exception)
                 {
@@ -80,27 +89,7 @@ namespace ConsoleApp1
                     Console.WriteLine("Still Running " + DateTime.Now.ToString());
 
                 };
-                //_ = myClass11.MyMain();
-
             }
-
-            // Loaded += async (sender, args) =>
-            // {
-            //    // send device connected message
-            //    //await SendDeviceToCloudMessagesAsync();
-            //    //await _vm.RunSampleAsync();
-            //    //await _vm.SendEventsToTopic();
-
-            //    // receive remote light control events
-            //    //await _vm.ReceiveCloudToDeviceMessageAsync();
-
-            //    //_vm.FloatSwitchStatusAlertWatch().Start();
-
-
-            //  };
-
-
-            Console.WriteLine(args.Length);
         }
 
      //   public static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -110,7 +99,6 @@ namespace ConsoleApp1
      //    {
      //        services.AddHostedService<Worker>();
      //    });
-
 
     }
     public class Worker : BackgroundService

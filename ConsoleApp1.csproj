@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DefineConstants>$(DefineConstants),NONRASPBERRY</DefineConstants>
+    <DefineConstants>$(DefineConstants),NONRASPBERRY,HOURLYCOUNT,BUTTONS</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DefineConstants>$(DefineConstants),NONRASPBERRY</DefineConstants>
+    <DefineConstants>$(DefineConstants),NONRASPBERRY,HOURLYCOUNT,BUTTONS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,7 +23,9 @@
     <PackageReference Include="Microsoft.Azure.Devices.Shared" Version="1.30.0" />
     <PackageReference Include="Microsoft.Azure.EventGrid" Version="3.2.1" />
     <PackageReference Include="Microsoft.Azure.EventHubs" Version="4.3.2" />
+    <PackageReference Include="Microsoft.Extensions.CommandLineUtils" Version="1.1.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="6.0.0" />
+    <PackageReference Include="NEST" Version="7.16.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="System.Device.Gpio" Version="1.5.0" />
   </ItemGroup>

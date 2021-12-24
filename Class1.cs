@@ -1,5 +1,7 @@
 ﻿//using GalaSoft.MvvmLight.Ioc;
-using Microsoft.Azure.Devices;
+using Azure.Messaging.EventHubs;
+//using Azure.Messaging.EventHubs.Consumer;
+using Azure.Messaging.EventHubs.Producer;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Shared;
 using Microsoft.Azure.EventGrid;
@@ -11,28 +13,22 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Device.Gpio;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Azure.Messaging.EventHubs;
-//using Azure.Messaging.EventHubs.Consumer;
-using Azure.Messaging.EventHubs.Processor;
-using Azure.Storage.Blobs;
-using Azure.Messaging.EventHubs.Producer;
-
 namespace ConsoleApp1
 {
-    
 
-    public class Class1
+    public class Class1 : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
         public Class1()
         {
-            
+
 #if RASPBERRY
             // Create event triggers for DEBUG PI port pins that need to monitored for chnages.
             // These  changes will cause a Event Trigger
@@ -50,62 +46,21 @@ namespace ConsoleApp1
             //    //await _vm.SendEventsToTopic();
 
             //receive remote light control events
-           //Task task2 = ReceiveCloudToDeviceMessageAsync();
-
+            //Task task2 = ReceiveCloudToDeviceMessageAsync();
 
             //Task task3 = FloatSwitchStatusAlertWatch();
 
         }
 
-        //public async Task InitializeDeviceState()
         public async void InitializeDeviceState()
         {
-
 #if RASPBERRY
             gpioController = new GpioController();
 #else
             Console.WriteLine("REGULAR COMPLIE");
-
 #endif
-            Twin twin;
-
-            //DeviceClient myDeviceClientTEMP = DeviceClient.//Create( IotHubUri, new DeviceAuthenticationWithRegistrySymmetricKey(DeviceId, DeviceKey), Microsoft.Azure.Devices.Client.TransportType.Mqtt); //TransportType.Mqtt
-
-            // Example --- int me2 = ("5" == "5") ? 1 : 0;
-            //Twin twin = myDeviceClient.GetTwinAsync().ConfigureAwait(true);
-
-            twin = await myDeviceClient.GetTwinAsync();
-            //TwinCollection desiredProperties = twin.Properties.Desired;
-            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=");
-            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=");
-            //HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=
-            myDeviceClient.OpenAsync().Wait();
-
-            
-
-            myDeviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, twin).GetAwaiter().GetResult();
-
-            ledPin = (twin.Properties.Desired["floatSwitchTwo"].ToString() == "ON") ? 1 : 5;
-            twin.Properties.Desired["floatSwitchTwo"] = "DESIREDOFF222";
-            twin.Properties.Reported["floatSwitchTwo"] = "DESIREDOFF222";
-
-            //ledPin = (desiredProperties["floatSwitchTwo"].ToString() == "ON") ? 1 : 5;
-            //desiredProperties["floatSwitchTwo"] = "DESIREDOFF222";
-            //desiredProperties["floatSwitchTwo"] = "REPORTEDOFF3333";
-
-            //registryManager.UpdateTwinAsync("MyAzureID2", twin, "AAAAAAAAAFY=").GetAwaiter();
-            // Set reported properties based on actual device settings
-            TwinCollection reportedProperties = new TwinCollection();
-            reportedProperties["floatSwitchTwo"] = "DESIREDOFF222";
-
-           await MyMain();
-
-            // Update device twin stored in the cloud
-            //await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties);
-
-//            await myDeviceClient.SetMethodHandlerAsync("SoundAlarm", SoundAlarm, null);
-
- 
+            await MyMain();
+            //            await myDeviceClient.SetMethodHandlerAsync("SoundAlarm", SoundAlarm, null);
 
             MainViewModel();
 
@@ -118,14 +73,18 @@ namespace ConsoleApp1
             Console.WriteLine("desired property change:");
             Console.WriteLine(JsonConvert.SerializeObject(desiredProperties));
             Console.WriteLine("Sending current time as reported property");
-            TwinCollection reportedProperties = new TwinCollection
+
+            ((Class1)userContext).DesiredTimeDelay = (desiredProperties[nameof(DesiredTimeDelay)] != ((Class1)userContext).DesiredTimeDelay) ? desiredProperties[nameof(DesiredTimeDelay)] : ((Class1)userContext).DesiredTimeDelay;
+
+            TwinCollection reportedProperties = new()
             {
-                ["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now
+                ["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now,
+                [nameof(DesiredTimeDelay)] = ((Class1)userContext).DesiredTimeDelay
             };
 
             await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
         }
-#region Azure IoT Hub Settings
+        #region Azure IoT Hub Settings
 
         /// <summary>
         /// Endpoint of the Event Grid Topic.
@@ -137,7 +96,7 @@ namespace ConsoleApp1
         /// Key of the Event Grid Topic.
         /// Update this with your own key from the Azure Portal.
         /// </summary>
-        private readonly string KEY = "pkMsXJVQ9GEYpRybtZ3jdy2mDX431i36SemrXeApk/Y=";
+        //private readonly string KEY = "pkMsXJVQ9GEYpRybtZ3jdy2mDX431i36SemrXeApk/Y=";
 
         // TODO: Enter values for <topic-name> and <region>. You can find this topic endpoint value
         // in the "Overview" section in the "Event Grid Topics" blade in Azure Portal.
@@ -166,14 +125,12 @@ namespace ConsoleApp1
 
         private static readonly TopicCredentials topicCredentials = new(topicKey);
         private static readonly EventGridClient client = new(topicCredentials);
-        
+
         //private static readonly EventGrid
 
         #endregion
 
         private readonly string topicHostname = new Uri(topicEndpoint).Host;
-
-
 
         // connection string to the Event Hubs namespace
         private const string connectionString = "Endpoint=sb://myrasppieventhub.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=robQJ80UX3gkNgw+4UFtATTLAVQU6JOL2/v2vMrSuTY=";
@@ -186,21 +143,139 @@ namespace ConsoleApp1
         // number of events to be sent to the event hub
         private const int numOfEvents = 3;
 
-
         // The Event Hubs client types are safe to cache and use as a singleton for the lifetime
         // of the application, which is best practice when events are being published or read regularly.
         static EventHubProducerClient producerClient;
         private bool sendEventData = true;
 
-
+        public enum Days
+        {
+            Monday = 1,
+            Tuesday = 2,
+            Wednesday = 3,
+            Thursday = 4,
+            Friday = 5,
+            Saturday = 6,
+            Sunday = 7
+        }
 
         public async Task MyMain()
         {
+            Twin twin;
+
+
+            List<Days> days = Enum.GetValues(typeof(Days))
+                      .Cast<Days>()
+                      .ToList();
+
+            //  days.Average(x => x);
+
+            Console.WriteLine(String.Join(Environment.NewLine, days));
+
+
+            Days[] days2 = (Days[])Enum.GetValues(typeof(Days));
+            Console.WriteLine(String.Join(Environment.NewLine, days));
+
+            var days3 = Enum.GetValues(typeof(Days))
+                .Cast<Days>()
+                .Select(d => (d, (int)d))
+                .ToList();
+
+            Console.WriteLine(String.Join(Environment.NewLine, days3));
+
+            Dictionary<string, int> days4 = Enum.GetValues(typeof(Days))
+                                .Cast<Days>()
+                                .ToDictionary(k => k.ToString(), v => (int)v);
+
+            Console.WriteLine(String.Join(Environment.NewLine, days4));
+
+            List<int> grades = new() { 78, 92, 100, 37, 81 };
+            double average = grades.Average();
+            Console.WriteLine("The average grade is {0}.", average);
+
+
+            var players = new List<Player> {
+            new Player { Name = "Alex", Team = "A", Score = 10 },
+            new Player { Name = "Anna", Team = "A", Score = 20 },
+            new Player { Name = "Luke", Team = "L", Score = 60 },
+            new Player { Name = "Lucy", Team = "L", Score = 40 },
+            };
+
+            grades.Capacity = 90;
+            grades.RemoveAt(0);
+            var teamAverageScores =
+                from player in players
+                group player by player.Team into playerGroup
+                select new
+                {
+                    Team = playerGroup.Key,
+                    AverageScore = playerGroup.Average(x => x.Score),
+                };
+
+            List<double> list = new();
+
+            //DeviceClient myDeviceClientTEMP = DeviceClient.//Create( IotHubUri, new DeviceAuthenticationWithRegistrySymmetricKey(DeviceId, DeviceKey), Microsoft.Azure.Devices.Client.TransportType.Mqtt); //TransportType.Mqtt
+
+            // Example --- int me2 = ("5" == "5") ? 1 : 0;
+            //Twin twin = myDeviceClient.GetTwinAsync().ConfigureAwait(true);
+
+            twin = await myDeviceClient.GetTwinAsync();
+            TwinCollection desiredProperties = twin.Properties.Desired;
+            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=");
+            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=");
+            //HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=
+            myDeviceClient.OpenAsync().Wait();
+
+            myDeviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, this).GetAwaiter().GetResult();
+
+            ledPin = (twin.Properties.Desired["floatSwitchTwo"].ToString() == "ON") ? 1 : 5;
+            //twin.Properties.Desired["floatSwitchTwo"] = "DESIREDOFF222";
+            twin.Properties.Reported["floatSwitchTwo"] = "DESIREDOFF222";
+
+
+            DesiredTimeDelay = twin.Properties.Desired[nameof(DesiredTimeDelay)];
+            BtnToggleLowIsChecked = twin.Properties.Desired[nameof(BtnToggleLowIsChecked)];
+            BtnToggleMiddleIsChecked = twin.Properties.Desired[nameof(BtnToggleMiddleIsChecked)];
+            BtnToggleHighIsChecked = twin.Properties.Desired[nameof(BtnToggleHighIsChecked)];
+
+            HourlyCount = twin.Properties.Desired[nameof(HourlyCount)];
+            HourlyAverage1 = twin.Properties.Desired[nameof(HourlyAverage1)];
+            HourlyAverage2 = twin.Properties.Desired[nameof(HourlyAverage2)];
+            HourlyAverage3 = twin.Properties.Desired[nameof(HourlyAverage3)];
+            HourlyAverage4 = twin.Properties.Desired[nameof(HourlyAverage4)];
+            HourlyAverage5 = twin.Properties.Desired[nameof(HourlyAverage5)];
+            HourlyAverage6 = twin.Properties.Desired[nameof(HourlyAverage6)];
+
+            //registryManager.UpdateTwinAsync("MyAzureID2", twin, "AAAAAAAAAFY=").GetAwaiter();
+            // Set reported properties based on actual device settings
+            TwinCollection reportedProperties = new();
+
+            //reportedProperties.Contains(nameof(DesiredTimeDelay))
+            reportedProperties[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
+            reportedProperties[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
+            reportedProperties[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+            reportedProperties[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+            reportedProperties[nameof(HourlyCount)] = 0; //HourlyCount;
+            reportedProperties[nameof(HourlyAverage1)] = 0; //HourlyAverage1;
+            reportedProperties[nameof(HourlyAverage2)] = 0; //HourlyAverage2;
+            reportedProperties[nameof(HourlyAverage3)] = 0; //HourlyAverage3;
+            reportedProperties[nameof(HourlyAverage4)] = 0; //HourlyAverage4;
+            reportedProperties[nameof(HourlyAverage5)] = 0; //HourlyAverage5;
+            reportedProperties[nameof(HourlyAverage6)] = 0; //HourlyAverage6;
+
+
+            //Update device twin stored in the cloud
+            await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties);
+
+            // Create a handler for the direct method call
+            await myDeviceClient.SetMethodHandlerAsync("SetMyTaskDelay", SetMyTaskDelay, this);
+            // Create a handler for the direct method call
+            await myDeviceClient.SetMethodHandlerAsync("SoundAlarm2", SoundAlarm2, null);
+
             // Create a producer client that you can use to send events to an event hub
             //producerClient = new EventHubBufferedProducerClient(connectionString, eventHubName);
             producerClient = new EventHubProducerClient(connectionString, eventHubName);
 
-            
             // The failure handler is required and invoked after all allowable
             // retries were applied.
 
@@ -217,11 +292,9 @@ namespace ConsoleApp1
             //    Debug.WriteLine($"{ args.EventBatch.Count } events were published to partition: '{ args.PartitionId }.");
             //    return Task.CompletedTask;
             //};
-
             EventDataBatch generateData;
-            List<string> device = new List<string>();
+            List<string> device = new();
 
- 
             try
             {
                 var eventData = new EventData("Hello, Event Hubs!")
@@ -235,11 +308,11 @@ namespace ConsoleApp1
                 eventData.Properties.Add("score", 9.0);
 
                 device.Add("Mobile");
-                
+
                 int partitionId = 0;
                 foreach (var eachDevice in device)
                 {
-                    StringBuilder strBuilder = new StringBuilder();
+                    StringBuilder strBuilder = new();
                     var batchOptions = new CreateBatchOptions()
                     {
                         PartitionId = partitionId.ToString()
@@ -278,7 +351,6 @@ namespace ConsoleApp1
                 }
 
                 Thread.Sleep((Int32)(1 * 1000));
-
                 Console.WriteLine("Sending EventDataBatch " + DateTime.Now.ToString());
                 //await producerClient.EnqueueEventAsync(eventData);
 
@@ -300,9 +372,7 @@ namespace ConsoleApp1
                 Console.WriteLine("Error occruied {0}. Try again later", exp.Message);
             }
 
-           
         }
-
 
         public void MethodSendEventData(Boolean value)
         {
@@ -310,18 +380,14 @@ namespace ConsoleApp1
 
         }
 
-
 #if RASPBERRY
         public GpioController Gpio { get; set; } = new GpioController();
-
 #else
 
 #endif
+        private static readonly GpioController gpioController;
 
-
-        private static GpioController gpioController;
-
-#region Set_GPIO_PinsNbrs
+        #region Set_GPIO_PinsNbrs
 
         private int pin_FloatSwitchLow = 4;
         private int pin_FloatSwitchMedium = 5;
@@ -360,9 +426,9 @@ namespace ConsoleApp1
         public int Pin_FloatSwitchIndicatorLedMedium { get => pin_FloatSwitchIndicatorLedMedium; set => pin_FloatSwitchIndicatorLedMedium = value; }
         public int Pin_FloatSwitchIndicatorLedLow { get => pin_FloatSwitchIndicatorLedLow; set => pin_FloatSwitchIndicatorLedLow = value; }
 
-#endregion
+        #endregion
 
-#region Set_PinvValueProperties
+        #region Set_PinvValueProperties
         private PinValue pinValueFloatSwitchLow;
         private PinValue pinValueFloatSwitchMedium;
         private PinValue pinValueFloatSwitchHigh;
@@ -370,20 +436,20 @@ namespace ConsoleApp1
         private PinValue pinvalueFloatSwitchIndicatorLedMedium;
         private PinValue pinvalueFloatSwitchIndicatorLedHigh;
 
-        public PinValue PinValueFloatSwitchLow { get { return pinValueFloatSwitchLow; } set { pinValueFloatSwitchLow = value; RaisePropertyChanged(); } }
-        public PinValue PinValueFloatSwitchMedium { get { return pinValueFloatSwitchMedium; } set { pinValueFloatSwitchMedium = value; RaisePropertyChanged(); } }
-        public PinValue PinValueFloatSwitchHigh { get { return pinValueFloatSwitchHigh; }  set { pinValueFloatSwitchHigh = value; RaisePropertyChanged(); } }
-        public PinValue PinvalueFloatSwitchIndicatorLedLow { get { return pinvalueFloatSwitchIndicatorLedLow; } set { pinvalueFloatSwitchIndicatorLedLow = value; RaisePropertyChanged(); } }
-        public PinValue PinvalueFloatSwitchIndicatorLedMedium { get { return pinvalueFloatSwitchIndicatorLedMedium; } set { pinvalueFloatSwitchIndicatorLedMedium = value; RaisePropertyChanged(); } }
-        public PinValue PinvalueFloatSwitchIndicatorLedHigh { get { return pinvalueFloatSwitchIndicatorLedHigh; } set { pinvalueFloatSwitchIndicatorLedHigh = value; RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchLow { get { return pinValueFloatSwitchLow; } set { pinValueFloatSwitchLow = value; _ = RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchMedium { get { return pinValueFloatSwitchMedium; } set { pinValueFloatSwitchMedium = value; _ = RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchHigh { get { return pinValueFloatSwitchHigh; } set { pinValueFloatSwitchHigh = value; _ = RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedLow { get { return pinvalueFloatSwitchIndicatorLedLow; } set { pinvalueFloatSwitchIndicatorLedLow = value; _ = RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedMedium { get { return pinvalueFloatSwitchIndicatorLedMedium; } set { pinvalueFloatSwitchIndicatorLedMedium = value; _ = RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedHigh { get { return pinvalueFloatSwitchIndicatorLedHigh; } set { pinvalueFloatSwitchIndicatorLedHigh = value; _ = RaisePropertyChanged(); } }
 
-#endregion
+        #endregion
 
         private string strFloatSwitchStatusMsg;
 
-        private readonly int pin_LedPin = 17;
-        private readonly int pin_PIRLedPin = 27;
-        private readonly int pin_PIR_Pin = 16;
+        //private readonly int pin_LedPin = 17;
+        //private readonly int pin_PIRLedPin = 27;
+        //private readonly int pin_PIR_Pin = 16;
 
         private int ledPin;
         private int pIR_LedPin;
@@ -395,21 +461,65 @@ namespace ConsoleApp1
         ///     or updates the latched output value for the pin if the pin is configured as an
         ///     input.
         /// </summary>
-        public int LedPin { get { return ledPin; } set { ledPin = value; RaisePropertyChanged(); } }
+        public int LedPin { get { return ledPin; } set { ledPin = value; _ = RaisePropertyChanged(); } }
 
-        public int PIRLedPin { get { return pIR_LedPin; } set { pIR_LedPin = value; RaisePropertyChanged(); } }
+        public int PIRLedPin { get { return pIR_LedPin; } set { pIR_LedPin = value; _ = RaisePropertyChanged(); } }
 
-        public int PIR_Pin { get { return pIR_Pin; } set { pIR_Pin = value; RaisePropertyChanged(); } }
-
+        public int PIR_Pin { get { return pIR_Pin; } set { pIR_Pin = value; _ = RaisePropertyChanged(); } }
 
         public string StrFloatSwitchStatusMsg { get => strFloatSwitchStatusMsg; set => strFloatSwitchStatusMsg = value; }
         private string GpioMsg { get => gpioMsg; set => gpioMsg = value; }
 
-#region Display Fields
+        #region Display Fields
 
-#endregion
+        #endregion
 
-#region btnToggel
+        private int iHourlyCount = 0;
+        private int iHourlyAverage1;
+        private int iHourlyAverage2;
+        private int iHourlyAverage3;
+        private int iHourlyAverage4;
+        private int iHourlyAverage5;
+        private int iHourlyAverage6;
+
+
+        public int HourlyCount
+        {
+            get { return iHourlyCount; }
+            set { iHourlyCount = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+        public int HourlyAverage1
+        {
+            get { return iHourlyAverage1; }
+            set { iHourlyAverage1 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+        public int HourlyAverage2
+        {
+            get { return iHourlyAverage2; }
+            set { iHourlyAverage2 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+        public int HourlyAverage3
+        {
+            get { return iHourlyAverage3; }
+            set { iHourlyAverage3 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+        public int HourlyAverage4
+        {
+            get { return iHourlyAverage4; }
+            set { iHourlyAverage4 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+        public int HourlyAverage5
+        {
+            get { return iHourlyAverage5; }
+            set { iHourlyAverage5 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+        public int HourlyAverage6
+        {
+            get { return iHourlyAverage6; }
+            set { iHourlyAverage6 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+        }
+
+        #region btnToggel
 
         private bool btnToggleHighIsChecked;
         private bool btnToggleMiddleIsChecked;
@@ -418,26 +528,28 @@ namespace ConsoleApp1
         public bool BtnToggleHighIsChecked
         {
             get { return btnToggleHighIsChecked; }
-            set { btnToggleHighIsChecked = value; RaisePropertyChanged(); }
+            set { btnToggleHighIsChecked = value; _ = RaisePropertyChanged(); }
         }
 
         public bool BtnToggleMiddleIsChecked
         {
             get { return btnToggleMiddleIsChecked; }
-            set { btnToggleMiddleIsChecked = value; RaisePropertyChanged(); }
+            set { btnToggleMiddleIsChecked = value; _ = RaisePropertyChanged(); }
         }
 
         public bool BtnToggleLowIsChecked
         {
             get { return btnToggleLowIsChecked; }
-            set { btnToggleLowIsChecked = value; RaisePropertyChanged(); }
+            set { btnToggleLowIsChecked = value; _ = RaisePropertyChanged(); }
         }
 
-#endregion
+
+
+        #endregion
 
         //private static int ButtonPinNumber;
 
-#region Miscellaneous
+        #region Miscellaneous
 
         private bool _isAzureConnected;
         private string _cloudToDeviceLog;
@@ -448,25 +560,24 @@ namespace ConsoleApp1
 
         private string textBlockString;
         private string emailDistributionGroup = "eagan_mike@hotmail.com";
-        private double myTaskDelay = 1;
 
         public bool IsOn { get; set; }
 
         public bool IsAzureConnected
         {
             get { return _isAzureConnected; }
-            set { _isAzureConnected = value; RaisePropertyChanged(); }
+            set { _isAzureConnected = value; _ = RaisePropertyChanged(); }
         }
 
         public string CloudToDeviceLog
         {
             get { return _cloudToDeviceLog; }
-            set { _cloudToDeviceLog = value; RaisePropertyChanged(); }
+            set { _cloudToDeviceLog = value; _ = RaisePropertyChanged(); }
         }
         public string TextBlockString
         {
             get { return textBlockString; }
-            set { textBlockString = value; RaisePropertyChanged(); }
+            set { textBlockString = value; _ = RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -476,9 +587,10 @@ namespace ConsoleApp1
         public string EmailDistributionGroup
         {
             get { return emailDistributionGroup; }
-            set { emailDistributionGroup = value; RaisePropertyChanged(); }
+            set { emailDistributionGroup = value; _ = RaisePropertyChanged(); }
         }
 
+        private double myTaskDelay = 1;
         /// <summary>
         /// 
         ///     Number of Seconds to wait before repeating Condition Test of State
@@ -486,7 +598,18 @@ namespace ConsoleApp1
         public double MyTaskDelay
         {
             get { return myTaskDelay; }
-            set { myTaskDelay = value; RaisePropertyChanged(); }
+            set { myTaskDelay = value; _ = RaisePropertyChanged(); }
+        }
+
+        private double desiredTimeDelay = 20;
+        /// <summary>
+        /// 
+        ///     Number of Seconds to wait before repeating Condition Test of State
+        /// </summary>
+        public double DesiredTimeDelay
+        {
+            get { return desiredTimeDelay; }
+            set { if (desiredTimeDelay != value) { desiredTimeDelay = value; } }
         }
 
         public string FloatSwitchEmailMsg
@@ -498,13 +621,13 @@ namespace ConsoleApp1
         public string YesterdayDay
         {
             get { return yesterdayDay; }
-            set { yesterdayDay = value; RaisePropertyChanged(); }
+            set { yesterdayDay = value; _ = RaisePropertyChanged(); }
         }
 
         public object TextBlockSlider { get; set; }
-#endregion
+        #endregion
 
-#region switchEventAlerttimeDifference
+        #region switchEventAlerttimeDifference
 
         private string switchEventAlertTimeDifferenceTop = "5"; //Default Number of minutes to wait before sending Alert email
         private string switchEventAlertTimeDifferenceMiddle = "5"; //Default Number of minutes to wait before sending Alert email
@@ -518,7 +641,7 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceTop
         {
             get { return switchEventAlertTimeDifferenceTop; }
-            set { switchEventAlertTimeDifferenceTop = value; RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceTop = value; _ = RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -528,7 +651,7 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceMiddle
         {
             get { return switchEventAlertTimeDifferenceMiddle; }
-            set { switchEventAlertTimeDifferenceMiddle = value; RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceMiddle = value; _ = RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -538,7 +661,7 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceHighErr
         {
             get { return switchEventAlertTimeDifferenceHighErr; }
-            set { switchEventAlertTimeDifferenceHighErr = value; RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceHighErr = value; _ = RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -548,12 +671,12 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceReset
         {
             get { return switchEventAlertTimeDifferenceHighReset; }
-            set { switchEventAlertTimeDifferenceHighReset = value; RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceHighReset = value; _ = RaisePropertyChanged(); }
         }
 
-#endregion
+        #endregion
 
-#region alertTriggerd
+        #region alertTriggerd
 
         //private string alertTriggeredTimeErrLast;
         private string alertTriggeredTimeTop;
@@ -564,20 +687,20 @@ namespace ConsoleApp1
         private string alertTriggeredTimeMiddleLast;
         private string alertTriggeredTimeErrLast;
         private string alertTriggeredTimeResetLast;
-        private RegistryManager registryManager;
+        //private readonly RegistryManager registryManager;
 
         //private RegistryManager registryManager;
 
         public string AlertTriggeredTimeTopLast
         {
             get { return alertTriggeredTimeTopLast; }
-            set { alertTriggeredTimeTopLast = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeTopLast = value; _ = RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeTop
         {
             get { return alertTriggeredTimeTop; }
-            set { alertTriggeredTimeTop = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeTop = value; _ = RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeMiddleLast
@@ -585,41 +708,42 @@ namespace ConsoleApp1
             get { return alertTriggeredTimeMiddleLast; }
             set
             {
-                alertTriggeredTimeMiddleLast = value; RaisePropertyChanged();
+                alertTriggeredTimeMiddleLast = value; _ = RaisePropertyChanged();
             }
         }
 
         public string AlertTriggeredTimeMiddle
         {
             get { return alertTriggeredTimeMiddle; }
-            set { alertTriggeredTimeMiddle = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeMiddle = value; _ = RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeErrLast
         {
             get { return alertTriggeredTimeErrLast; }
-            set { alertTriggeredTimeErrLast = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeErrLast = value; _ = RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeErr
         {
             get { return alertTriggeredTimeErr; }
-            set { alertTriggeredTimeErr = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeErr = value; _ = RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeResetLast
         {
             get { return alertTriggeredTimeResetLast; }
-            set { alertTriggeredTimeResetLast = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeResetLast = value; _ = RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeReset
         {
             get { return alertTriggeredTimeReset; }
-            set { alertTriggeredTimeReset = value; RaisePropertyChanged(); }
+            set { alertTriggeredTimeReset = value; _ = RaisePropertyChanged(); }
         }
 
         public bool SendEventData { get => sendEventData; set => sendEventData = value; }
+        public DateTime LastPointInTime { get => lastPointInTime; private set => lastPointInTime = value; }
 
         //public MainPage RootPage { get => rootPage; set => rootPage = value; }
 
@@ -641,12 +765,8 @@ namespace ConsoleApp1
             //   twin.Properties.Desired["YourProperty"] = "some value";
             //   await manager.UpdateTwinAsync(twin.DeviceId, twin, twin.ETag);
             //}            
-
-
             if (null != gpioController)
             {
-
-
                 gpioController.OpenPin(Pin_FloatSwitchLow);
                 gpioController.SetPinMode(Pin_FloatSwitchLow, PinMode.InputPullUp);
                 gpioController.RegisterCallbackForPinValueChangedEvent(Pin_FloatSwitchLow, PinEventTypes.Rising, Pin_FloatSwitchLow_ValueChanged);
@@ -696,7 +816,6 @@ namespace ConsoleApp1
                 //Pin_FloatSwitchIndicatorLedHigh.DebounceTimeout = TimeSpan.FromSeconds(1);
                 //Pin_FloatSwitchIndicatorLedHigh.Write(GpioPinValue.Low);
 
-
                 gpioController.OpenPin(17);
                 gpioController.OpenPin(27);
                 gpioController.OpenPin(16);
@@ -718,7 +837,6 @@ namespace ConsoleApp1
                 //RunSampleAsync().GetAwaiter().GetResult();
             }
 
-
             //if (FloatSwitchStatusAlertWatch() == null)
             //{   //This if may not be neeed
             //    var t = FloatSwitchStatusAlertWatch();
@@ -727,44 +845,37 @@ namespace ConsoleApp1
 
         }
 
-
-#region FloatSwitchesValueChanged
+        #region FloatSwitchesValueChanged
         private void Pin_FloatSwitchLow_ValueChanged(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-
             try
             {
-
-
                 // Cool Stuff                    PinValueChangedEventArgs pinValueChangedEventArgs1 = new(pinValueChangedEventArgs.ChangeType,pin_FloatSwitchHigh);
                 // Cool Stuff                    Pin_FloatSwitchIndicatorLedLow_ValueChanged(sender, pinValueChangedEventArgs: pinValueChangedEventArgs1);
-
                 PinValueFloatSwitchLow = gpioController.Read(pinValueChangedEventArgs.PinNumber);
-               
                 Console.WriteLine(DateTime.Now + " " + pinValueChangedEventArgs.PinNumber + " pin = " + PinValueFloatSwitchLow);
-
+                Debug.WriteLine($"{DateTime.Now}  { pinValueChangedEventArgs.PinNumber }  pin = { PinValueFloatSwitchLow}");
                 try
                 {
                     //PinValue FloatSwitchStatus = sender.Read(); //"Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString()
 
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
-
-                    if ( PinValueFloatSwitchLow == PinValue.High)  // ***  Floatswitch Open
+                    if (PinValueFloatSwitchLow == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
                         //PirLEDStatus = true;
                         BtnToggleLowIsChecked = false;
                         gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.Low);
                         //gpioController.Write((int)sender, PinValue.Low);   // ***  Reason Floatswitch is Open
-
                     }
                     else                                    // *** Floatswitch Closed
                     {
                         BtnToggleLowIsChecked = true;
                         gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.High);
-                        //gpioController.Write((int)sender, PinValue.High);  // *** Reason Floatswitch Close
 
+                        HourlyCount += 1;
+                        //gpioController.Write((int)sender, PinValue.High);  // *** Reason Floatswitch Close
                     }
                 }
                 //SendDeviceToCloudMessagesAsync();
@@ -791,12 +902,10 @@ namespace ConsoleApp1
                 //LightPIR_LED(false);
             }
             //throw new NotImplementedException();
-
         }
 
         private void Pin_FloatSwitchIndicatorLedLow_ValueChanged(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-
             try
             {
                 PinvalueFloatSwitchIndicatorLedLow = gpioController.Read(pinValueChangedEventArgs.PinNumber);
@@ -865,7 +974,6 @@ namespace ConsoleApp1
 
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
-
                     if (PinValueFloatSwitchMedium == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
@@ -873,14 +981,12 @@ namespace ConsoleApp1
                         BtnToggleMiddleIsChecked = false;
                         gpioController.Write(pin_FloatSwitchIndicatorLedMedium, PinValue.Low);
                         //gpioController.Write((int)sender, PinValue.Low);   // ***  Reason Floatswitch is Open
-
                     }
                     else                                    // *** Floatswitch Closed
                     {
                         BtnToggleMiddleIsChecked = true;
                         gpioController.Write(pin_FloatSwitchIndicatorLedMedium, PinValue.High);
                         //gpioController.Write((int)sender, PinValue.High);  // *** Reason Floatswitch Close
-
                     }
                 }
                 //await SendDeviceToCloudMessagesAsync();
@@ -981,7 +1087,6 @@ namespace ConsoleApp1
 
                     // StrFloatSwitchStatusMsg = "Float Switch High Status: " + FloatSwitchStatus.ToString() + "; Time: " + DateTime.Now.ToString();
                     // TextBlockString = StrFloatSwitchStatusMsg;
-
                     if (PinValueFloatSwitchHigh == PinValue.High)  // ***  Floatswitch Open
                     {
                         //GpioMsg = "PIR_Activated";
@@ -989,7 +1094,6 @@ namespace ConsoleApp1
                         BtnToggleHighIsChecked = false;
                         gpioController.Write(pin_FloatSwitchIndicatorLedHigh, PinValue.Low);
                         //gpioController.Write((int)sender, PinValue.Low);   // ***  Reason Floatswitch is Open
-
                     }
                     else                                    // *** Floatswitch Closed
                     {
@@ -1152,7 +1256,6 @@ namespace ConsoleApp1
                         if (isParsable)
                         {
                             //SwitchEventAlertTimeMiddle = new DateTime();
-
                             TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeReset;
                             if (interval.Minutes >= StrToInt)
                             {
@@ -1189,7 +1292,6 @@ namespace ConsoleApp1
                     isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceMiddle, out StrToInt);
                     if (isParsable)
                     {
-
                         TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeMiddle;
                         if (interval.Minutes >= StrToInt)
                         {
@@ -1236,7 +1338,6 @@ namespace ConsoleApp1
                             AlertTriggeredTimeTop = SwitchEventAlertTimeTop.ToString();
                             SendEventsToTopic();
                         }
-
                     }
                 }
 
@@ -1290,33 +1391,26 @@ namespace ConsoleApp1
             {
                 Debug.WriteLine(ex.Message);
             }
-
             finally
             {
                 Console.WriteLine("FloatSwitchStatusAlertWatch - Still Running " + DateTime.Now.ToString());
                 //Task task3 = InitializeDeviceState();
-
 
                 // this task runs all the time with Delay as defined below
                 //Thread.Sleep((Int32)(MyTaskDelay * 1000));
                 //await Task.Delay((Int32)(MyTaskDelay * 1000));//
             }
 
-            //            }
-
         }
-
-
 
         /// <summary>
         /// Send events to Event Grid Topic.
         /// </summary>
         public void SendEventsToTopic()
         {
-           try
+            try
             {
                 string msgEmailSub = (StrFloatSwitchStatusMsg.Length > 0) ? StrFloatSwitchStatusMsg : "This email is being generated via a Test Event from the application";
-
 
                 //List<UserDetails> details = new List<UserDetails>();
                 List<EventGridEvent> eventsList = new();
@@ -1341,11 +1435,9 @@ namespace ConsoleApp1
                 //details.Add(new userdetails { emailsubject = "FlostSwitch Status Warning", emailbody = FloatSwitchEmailMsg, eventtime = DateTime.Now.ToString() });
                 FloatSwitchEmailMsg = ""; //JsonConvert.SerializeObject(details);
 
-
                 client.PublishEventsAsync(topicHostname, eventsList).GetAwaiter().GetResult();
                 Console.Write("SendEventsToTopic::Published events to Event Grid topic. " + DateTime.Now.ToString());
                 Console.Write(StrFloatSwitchStatusMsg);
-
 
                 //Console.ReadLine();
 
@@ -1386,29 +1478,109 @@ namespace ConsoleApp1
             {
                 Debug.WriteLine(ex.Message);
             }
-
             finally { }
 
         }
 
-#region PropertChangeEvents
+        #region PropertChangeEvents
 
-        void RaisePropertyChanged([CallerMemberName] string prop = null)
+        public async Task RaisePropertyChanged([CallerMemberName] string prop = null)
         {
-            //Test Comment no meaing at all
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            if (prop != null)
+            {
+                if (prop == "PinValueFloatSwitchLow" || prop == "PinValueFloatSwitchMedium" || prop == "PinValueFloatSwitchHigh")
+                {
+                    Twin twin2 = new();
+
+                    switch (prop)
+                    {
+                        case "PinValueFloatSwitchLow":
+                            twin2.Properties.Reported[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
+                            break;
+
+                        case "PinValueFloatSwitchMedium":
+                            twin2.Properties.Reported[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+                            break;
+
+                        case "PinValueFloatSwitchHigh":
+                            twin2.Properties.Reported[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+                            break;
+
+                        default:
+                            break;
+                    }
+
+                    await myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
+
+                }
+                //Test Comment no meaing at all
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            }
         }
+        public async Task HourlyCountPropertyChanged(DateTime CurrTime, [CallerMemberName] string prop = null)
+        {
+            if (prop == "HourlyCount")
+            {
+                if (iHourlyCount != 0)
+                {
+                    Twin twin2 = new();
+                    twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
+
+                    //Random r = new();
+                    // creating object of TimeSpan
+                    //TimeSpan ts = new TimeSpan(0, r.Next(0, 72), 0, 0);
+                    //TimeSpan ts = new(0, 1, 0, 0);
+                    //var Ampm = (CurrTime.Subtract(ts)).ToString("tt");
+                    //DateTime PastTime = (CurrTime.Subtract(ts));
+
+                    //LastPointInTime = CurrTime.AddHours(1);
+                    // Compare dates
+                    //
+                    // Compare today to past time
+                    //int comparison = CurrTime.CompareTo(LastPointInTime.AddSeconds(15));
+                    //CurrTime.AddSeconds(11).CompareTo(LastPointInTime);
+                    if (DateTime.Compare(CurrTime, LastPointInTime.AddSeconds(120)) == 1)
+                    {
+                        HourlyAverage6 = iHourlyAverage5;
+                        HourlyAverage5 = iHourlyAverage4;
+                        HourlyAverage4 = iHourlyAverage3;
+                        HourlyAverage3 = iHourlyAverage2;
+                        HourlyAverage2 = iHourlyAverage1;
+                        HourlyAverage1 = iHourlyCount;
+                        HourlyCount = 0;
+                        LastPointInTime = CurrTime;
+
+                        twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
+                        twin2.Properties.Reported[nameof(HourlyAverage1)] = HourlyAverage1;
+                        twin2.Properties.Reported[nameof(HourlyAverage2)] = HourlyAverage2;
+                        twin2.Properties.Reported[nameof(HourlyAverage3)] = HourlyAverage3;
+                        twin2.Properties.Reported[nameof(HourlyAverage4)] = HourlyAverage4;
+                        twin2.Properties.Reported[nameof(HourlyAverage5)] = HourlyAverage5;
+                        twin2.Properties.Reported[nameof(HourlyAverage6)] = HourlyAverage6;
+
+                    }
+
+                    //Update device twin stored in the cloud
+                    await myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
+
+
+                }
+            }
+            if (prop != null)
+            {                 //Test Comment no meaing at all
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            }
+
+        }
+
 
         private void PinChangeEventHandler(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-            Debug.Write($"Interrupt Thread:{Thread.CurrentThread.ManagedThreadId}");
-
+            Debug.Write($"Interrupt Thread:{Environment.CurrentManagedThreadId}");
 
             if (pinValueChangedEventArgs.ChangeType == PinEventTypes.Rising)
             {
-
 #if RASPBERRY
-
                 if (Gpio.Read((int)sender) == PinValue.Low)
                 {
                     Gpio.Write((int)sender, PinValue.High);
@@ -1425,76 +1597,77 @@ namespace ConsoleApp1
             throw new NotImplementedException();
         }
 
-        //private async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
-        //{
-        //    Console.WriteLine("\tDesired property changed:");
-        //    Console.WriteLine($"\t{desiredProperties.ToJson()}");
-
-        //    Console.WriteLine("\tSending current time as reported property");
-        //    TwinCollection reportedProperties = new();
-        //    reportedProperties["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now;
-
-        //    await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
-        //}
-
-        //static IList<EventGridEvent> GetEventsList()
-        //{
-        //    List<EventGridEvent> eventsList = new List<EventGridEvent>();
-
-        //    for (int i = 0; i < 2; i++)
-        //    {
-        //        eventsList.Add(new EventGridEvent()
-        //        {
-
-        //            Id = Guid.NewGuid().ToString(),
-        //            EventType = "Contoso.Items.ItemReceived",
-        //            Data = new ContosoItemReceivedEventData()
-        //            {
-        //                emailbody = "Contoso Item SKU #1",
-        //                emailsubject = "Email Subject"
-        //            },
-        //            EventTime = DateTime.Now,
-        //            Subject = "Door1",
-        //            DataVersion = "2.0"
-        //        });
-        //    }
-
-        //    return eventsList;
-        //}
-
         #endregion
 
-        CancellationTokenSource source = new CancellationTokenSource();
+        readonly CancellationTokenSource source = new();
+        //private static readonly double s_telemetryInterval;
+        private DateTime lastPointInTime = DateTime.Now;
 
         public async Task SendDeviceToCloudMessages()
         //public async Task<Task> SendDeviceToCloudMessagesAsync()
         {
             try
             {
-                //Task task3 = InitializeDeviceState();
 
+                Twin twin2 = new();
+
+#if BUTTONS
+                BtnToggleLowIsChecked = !BtnToggleLowIsChecked;
+                BtnToggleMiddleIsChecked = !BtnToggleMiddleIsChecked;
+                BtnToggleHighIsChecked = !BtnToggleHighIsChecked;
+#endif
+                twin2.Properties.Reported[nameof(MyTaskDelay)] = MyTaskDelay;
+                twin2.Properties.Reported[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
+                twin2.Properties.Reported[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
+                twin2.Properties.Reported[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+                twin2.Properties.Reported[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+                twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
+                twin2.Properties.Reported[nameof(HourlyAverage1)] = HourlyAverage1;
+                twin2.Properties.Reported[nameof(HourlyAverage2)] = HourlyAverage2;
+                twin2.Properties.Reported[nameof(HourlyAverage3)] = HourlyAverage3;
+                twin2.Properties.Reported[nameof(HourlyAverage4)] = HourlyAverage4;
+                twin2.Properties.Reported[nameof(HourlyAverage5)] = HourlyAverage5;
+                twin2.Properties.Reported[nameof(HourlyAverage6)] = HourlyAverage6;
+
+                //TwinCollection reportedProperties = twin2.Properties.Reported;
+
+                //reportedProperties.Contains(nameof(DesiredTimeDelay))
+                //reportedProperties[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
+                //reportedProperties[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
+                //reportedProperties[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+                //reportedProperties[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+                //reportedProperties[nameof(HourlyCount)] = HourlyCount;
+                //reportedProperties[nameof(HourlyAverage1)] = HourlyAverage1;
+                //reportedProperties[nameof(HourlyAverage2)] = HourlyAverage2;
+                //reportedProperties[nameof(HourlyAverage3)] = HourlyAverage3;
+                //reportedProperties[nameof(HourlyAverage4)] = HourlyAverage4;
+                //reportedProperties[nameof(HourlyAverage5)] = HourlyAverage5;
+                //reportedProperties[nameof(HourlyAverage6)] = HourlyAverage6;
+
+                //Update device twin stored in the cloud
+                await myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
+
+
+                //Task task3 = InitializeDeviceState();
                 var telemetryDataPoint = new
                 {
                     deviceId = DeviceId,
                     message = "Hello  " + DateTime.Now.ToString()
+                    //message = GpioMsg
+                };
 
-
-                //message = GpioMsg
-            };
-
-                                
                 var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
                 var message = new Microsoft.Azure.Devices.Client.Message(Encoding.ASCII.GetBytes(messageString));
 
                 message.Properties.Add("NH", "HIGH");
                 message.Properties.Add("NM", "HIGH");
                 message.Properties.Add("NL", "HIGH");
-                message.Properties.Add("OH", "HIGH");
-                message.Properties.Add("OM", "HIGH");
-                message.Properties.Add("OL", "HIGH");
+                //message.Properties.Add("OH", "HIGH");
+                //message.Properties.Add("OM", "HIGH");
+                //message.Properties.Add("OL", "HIGH");
 
                 message.Properties.Add("UserId", "UserId");
-                message.Properties.Add("Location", "Mike Egaan " + DateTime.Now.ToString());
+                //message.Properties.Add("Location", "Mike Egaan " + DateTime.Now.ToString());
 
                 message.Properties.Add("MyTaskDelay", MyTaskDelay.ToString());//
                 message.Properties.Add("SendEventData", true.ToString());
@@ -1504,7 +1677,7 @@ namespace ConsoleApp1
                 //twin.Properties.Desired["mike"] = "Test";
 
                 //RegistryManager registryManager = Microsoft.Azure.Devices.RegistryManager.CreateFromConnectionString(connectionString);
-                //  registryManager.UpdateTwins2Async()
+                //registryManager.UpdateTwinAsync()
 
                 //Device device = registryManager.GetDeviceAsync(deviceId).Result;
                 //Twin deviceTwin = await registryManager.GetTwinAsync(deviceId);
@@ -1514,11 +1687,9 @@ namespace ConsoleApp1
                 //Device result = await registryManager.UpdateDeviceAsync(device, true);
 
                 CancellationToken token = source.Token;
+                //await myDeviceClient.SendEventAsync(message, token);
 
-
-                await myDeviceClient.SendEventAsync(message, token);
-
-                Debug.WriteLine("{0} > Sending message: {1}", DateTime.Now, messageString);
+                Debug.WriteLine($"{DateTime.Now} > Sending message: {messageString}");
                 Console.WriteLine("SendDeviceToCloudMessagesAsync " + DateTime.Now.ToString());
 
                 Thread.Sleep((Int32)(1 * 1000));
@@ -1533,7 +1704,7 @@ namespace ConsoleApp1
             //return Task.CompletedTask;
         }
 
-        public async Task RunSampleAsync()
+        public static async Task RunSampleAsync()
         {
             //        await DeviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, null).ConfigureAwait(false);
 
@@ -1567,7 +1738,7 @@ namespace ConsoleApp1
             while (true)
             {
                 //var message = await client.ReceiveAsync();
-                var message = await myDeviceClient.ReceiveAsync(); 
+                var message = await myDeviceClient.ReceiveAsync();
                 // Check if message was received
                 if (message == null)
                 {
@@ -1586,7 +1757,7 @@ namespace ConsoleApp1
                 catch (Exception)
                 {
                     // Send to deadletter
-                    await  myDeviceClient.RejectAsync(message);
+                    await myDeviceClient.RejectAsync(message);
                     //await client.RejectAsync(message);
                 }
             }
@@ -1595,8 +1766,50 @@ namespace ConsoleApp1
         //IOT Device
 
         //And in our simulated device, implement the SoundAlarm remote method which is being called.
-        private static Task<MethodResponse> SoundAlarm(MethodRequest methodRequest, object userContext)
+        public static Task<MethodResponse> SetMyTaskDelay(MethodRequest methodRequest, object userContext)
+        {
+            //var cmdArg = JsonConvert.DeserializeObject<CommandArgument>(methodRequest.DataAsJson);
+            //switch (cmdArg.Command.ToLowerInvariant())
+            //{
+            //    case "normal":
+            //        minTemperature = 100;
+            //        maxTemperature = 700;
+            //        break;
+            //}
 
+            var data = Encoding.UTF8.GetString(methodRequest.Data);
+
+            // Check the payload is a single integer value
+            if (double.TryParse(data, out double telemetryIntervalInSeconds))
+            {
+                //Class1 mc = new();
+
+                ((Class1)userContext).MyTaskDelay = telemetryIntervalInSeconds;
+
+                // On a real engine this would sound the alarm as well as show the message
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"MyTaskDelay Time set to {telemetryIntervalInSeconds} seconds");
+                Console.ResetColor();
+                Debug.WriteLine($"MyTaskDelay Time set to {telemetryIntervalInSeconds} seconds");
+
+                //var response = JsonConvert.SerializeObject(new { acknowledged = Console.ReadLine() == "yes" });
+                var response = JsonConvert.SerializeObject(new { acknowledged = "MyTaskDelay Time set to " + telemetryIntervalInSeconds + " seconds" });
+                return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(response), 200));
+
+            }
+            else
+            {
+                // Acknowlege the direct method call with a 400 error message
+                string result = "{\"result\":\"Invalid parameter\"}";
+                return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
+
+            }
+
+        }
+
+        //And in our simulated device, implement the SoundAlarm remote method which is being called.
+        private static Task<MethodResponse> SoundAlarm2(MethodRequest methodRequest, object userContext)
         {
             // On a real engine this would sound the alarm as well as show the message
             Console.ForegroundColor = ConsoleColor.Red;
@@ -1609,17 +1822,13 @@ namespace ConsoleApp1
 
         }
 
-
-
-
-
         public async Task<Task> ReceiveCloudToDeviceMessageAsync()
         {
             CloudToDeviceLog = "Receiving events...";
             Debug.WriteLine("\nReceiving cloud to device messages from service");
 
-            int ButtonPinNumber = 5;
-            int LedPinNumber = 16;
+            //int ButtonPinNumber = 5;
+            //int LedPinNumber = 16;
 
             while (true)
             {
@@ -1667,7 +1876,6 @@ namespace ConsoleApp1
                 await myDeviceClient.CompleteAsync(receivedMessage);
             }
 
-
         }
 
         ///This captures the "Data" portion of an EventGridEvent on a custom topic
@@ -1700,7 +1908,52 @@ namespace ConsoleApp1
             public string Eventtime { get => eventtime; set => eventtime = value; }
         }
 
+        class Player
+        {
+            public string Name;
+            public string Team;
+            public int Score;
+
+        }
     }
+
+    //private async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
+    //{
+    //    Console.WriteLine("\tDesired property changed:");
+    //    Console.WriteLine($"\t{desiredProperties.ToJson()}");
+
+    //    Console.WriteLine("\tSending current time as reported property");
+    //    TwinCollection reportedProperties = new();
+    //    reportedProperties["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now;
+
+    //    await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
+    //}
+
+    //static IList<EventGridEvent> GetEventsList()
+    //{
+    //    List<EventGridEvent> eventsList = new List<EventGridEvent>();
+
+    //    for (int i = 0; i < 2; i++)
+    //    {
+    //        eventsList.Add(new EventGridEvent()
+    //        {
+
+    //            Id = Guid.NewGuid().ToString(),
+    //            EventType = "Contoso.Items.ItemReceived",
+    //            Data = new ContosoItemReceivedEventData()
+    //            {
+    //                emailbody = "Contoso Item SKU #1",
+    //                emailsubject = "Email Subject"
+    //            },
+    //            EventTime = DateTime.Now,
+    //            Subject = "Door1",
+    //            DataVersion = "2.0"
+    //        });
+    //    }
+
+    //    return eventsList;
+    //}
+
 
 
 }
