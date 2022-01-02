@@ -56,6 +56,7 @@ namespace ConsoleApp1
         {
 #if RASPBERRY
             gpioController = new GpioController();
+
 #else
             Console.WriteLine("REGULAR COMPLIE");
 #endif
@@ -70,19 +71,76 @@ namespace ConsoleApp1
         // This Task is never fired when using Device SDK 1.29.0-preview-004
         private static async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
         {
-            Console.WriteLine("desired property change:");
-            Console.WriteLine(JsonConvert.SerializeObject(desiredProperties));
-            Console.WriteLine("Sending current time as reported property");
 
-            ((Class1)userContext).DesiredTimeDelay = (desiredProperties[nameof(DesiredTimeDelay)] != ((Class1)userContext).DesiredTimeDelay) ? desiredProperties[nameof(DesiredTimeDelay)] : ((Class1)userContext).DesiredTimeDelay;
-
-            TwinCollection reportedProperties = new()
+            if (desiredProperties != null)
             {
-                ["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now,
-                [nameof(DesiredTimeDelay)] = ((Class1)userContext).DesiredTimeDelay
-            };
+                foreach (KeyValuePair<string, object> prop in desiredProperties)
+                {
+                    switch (prop.Key)
+                    {
+                        case "DesiredTimeDelay":
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"DesiredProperties : DesiredTimeDelay Time set to {prop.Value.ToString()} Minutes");
 
-            await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
+                            ((Class1)userContext).DesiredTimeDelay = (desiredProperties[nameof(DesiredTimeDelay)] != ((Class1)userContext).DesiredTimeDelay) ? desiredProperties[nameof(DesiredTimeDelay)] : ((Class1)userContext).DesiredTimeDelay;
+
+                            break;
+
+                        case "WhileSpeed":
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"DesiredProperties : WhileSpeed Time set to {prop.Value.ToString()} Seconds");
+
+                            ((Class1)userContext).WhileSpeed = (desiredProperties[nameof(WhileSpeed)] != ((Class1)userContext).WhileSpeed) ? desiredProperties[nameof(WhileSpeed)] : ((Class1)userContext).WhileSpeed;
+
+                            break;
+
+                        case "FloatSpeed":
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"DesiredProperties : FloatSpeed Time set to {prop.Value.ToString()} Seconds");
+
+                            ((Class1)userContext).FloatSpeed = (desiredProperties[nameof(FloatSpeed)] != ((Class1)userContext).FloatSpeed) ? desiredProperties[nameof(FloatSpeed)] : ((Class1)userContext).FloatSpeed;
+
+                            break;
+
+                        case "SwitchEventAlertTimeDifference":
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"DesiredProperties : SwitchEventAlertTimeDifference Time set to {prop.Value.ToString()} Minutes");
+
+                            ((Class1)userContext).SwitchEventAlertTimeDifference = (desiredProperties[nameof(SwitchEventAlertTimeDifference)] != ((Class1)userContext).SwitchEventAlertTimeDifference) ? desiredProperties[nameof(SwitchEventAlertTimeDifference)] : ((Class1)userContext).SwitchEventAlertTimeDifference;
+
+                            break;
+
+                        case "EnableEmailAlerts":
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"DesiredProperties : EnableEmailAlerts Time set to {prop.Value.ToString()} True");
+
+                            ((Class1)userContext).EnableEmailAlerts = (desiredProperties[nameof(EnableEmailAlerts)] != ((Class1)userContext).EnableEmailAlerts) ? desiredProperties[nameof(EnableEmailAlerts)] : ((Class1)userContext).EnableEmailAlerts;
+
+                            break;
+
+                        default:
+                            Console.WriteLine("desired property change:");
+                            Console.WriteLine(JsonConvert.SerializeObject(desiredProperties));
+                            Console.WriteLine("Sending current time as reported property");
+                            break;
+                    }
+
+                    Console.ResetColor();
+
+                    TwinCollection reportedProperties = new()
+                    {
+                        ["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now,
+                        [nameof(DesiredTimeDelay)] = ((Class1)userContext).DesiredTimeDelay
+                    };
+
+                    await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
+                }
+            }
         }
         #region Azure IoT Hub Settings
 
@@ -107,17 +165,22 @@ namespace ConsoleApp1
         private static readonly string topicKey = "pkMsXJVQ9GEYpRybtZ3jdy2mDX431i36SemrXeApk/Y=";
 
 
-        //ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=
-        //private static readonly string DeviceKey = "cj6vhwu485x5VUn6A5ElBWgH0lBIkLXGNL2DCnEjAaA=";
+
+#if DEVICE1
+        private static string DeviceId => "MyAzureID1";
+        private static readonly string DeviceKey = "V7IJOmDaf+484mofCeh54QkkySjMaHCwYNwkCwUj2uo=";
+
+
+#endif
+
+#if DEVICE2
+        private static string DeviceId => "MyAzureID2";
         private static readonly string DeviceKey = "ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=";
 
-        //MyAzureID2
 
-        //private static string DeviceId => "MyRasp2";
-        private static string DeviceId => "MyAzureID2";
+#endif
 
-        //
-        //private static readonly string IotHubUri = "Firt-Iot-Hub.azure-devices.net";
+
         private static readonly string IotHubUri = "MyIOTHubFeb2019.azure-devices.net";
 
         private static readonly DeviceClient myDeviceClient = DeviceClient.Create(IotHubUri, new DeviceAuthenticationWithRegistrySymmetricKey(DeviceId, DeviceKey));
@@ -134,11 +197,9 @@ namespace ConsoleApp1
 
         // connection string to the Event Hubs namespace
         private const string connectionString = "Endpoint=sb://myrasppieventhub.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=robQJ80UX3gkNgw+4UFtATTLAVQU6JOL2/v2vMrSuTY=";
-        //private const string connectionString = "Endpoint=sb://ihsuprodbnres007dednamespace.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=";
 
         // name of the event hub
         private const string eventHubName = "myrasppieventhubmessagegrp";
-        //private const string eventHubName = "iothub-ehub-myiothubfe-1362574-279fec4c10";
 
         // number of events to be sent to the event hub
         private const int numOfEvents = 3;
@@ -159,144 +220,179 @@ namespace ConsoleApp1
             Sunday = 7
         }
 
+        public enum HourlyAveragePosition
+        {
+            HourlyAverage1 = 1,
+            HourlyAverage2 = 2,
+            HourlyAverage3 = 3,
+            HourlyAverage4 = 4,
+            HourlyAverage5 = 5,
+            HourlyAverage6 = 6,
+        }
+
+        private List<HourlyAverageClass> HourlyAverageClasses = new List<HourlyAverageClass>();
+
         public async Task MyMain()
         {
-            Twin twin;
-
-
-            List<Days> days = Enum.GetValues(typeof(Days))
-                      .Cast<Days>()
-                      .ToList();
-
-            //  days.Average(x => x);
-
-            Console.WriteLine(String.Join(Environment.NewLine, days));
-
-
-            Days[] days2 = (Days[])Enum.GetValues(typeof(Days));
-            Console.WriteLine(String.Join(Environment.NewLine, days));
-
-            var days3 = Enum.GetValues(typeof(Days))
-                .Cast<Days>()
-                .Select(d => (d, (int)d))
-                .ToList();
-
-            Console.WriteLine(String.Join(Environment.NewLine, days3));
-
-            Dictionary<string, int> days4 = Enum.GetValues(typeof(Days))
-                                .Cast<Days>()
-                                .ToDictionary(k => k.ToString(), v => (int)v);
-
-            Console.WriteLine(String.Join(Environment.NewLine, days4));
-
-            List<int> grades = new() { 78, 92, 100, 37, 81 };
-            double average = grades.Average();
-            Console.WriteLine("The average grade is {0}.", average);
-
-
-            var players = new List<Player> {
-            new Player { Name = "Alex", Team = "A", Score = 10 },
-            new Player { Name = "Anna", Team = "A", Score = 20 },
-            new Player { Name = "Luke", Team = "L", Score = 60 },
-            new Player { Name = "Lucy", Team = "L", Score = 40 },
-            };
-
-            grades.Capacity = 90;
-            grades.RemoveAt(0);
-            var teamAverageScores =
-                from player in players
-                group player by player.Team into playerGroup
-                select new
-                {
-                    Team = playerGroup.Key,
-                    AverageScore = playerGroup.Average(x => x.Score),
-                };
-
-            List<double> list = new();
-
-            //DeviceClient myDeviceClientTEMP = DeviceClient.//Create( IotHubUri, new DeviceAuthenticationWithRegistrySymmetricKey(DeviceId, DeviceKey), Microsoft.Azure.Devices.Client.TransportType.Mqtt); //TransportType.Mqtt
-
-            // Example --- int me2 = ("5" == "5") ? 1 : 0;
-            //Twin twin = myDeviceClient.GetTwinAsync().ConfigureAwait(true);
-
-            twin = await myDeviceClient.GetTwinAsync();
-            TwinCollection desiredProperties = twin.Properties.Desired;
-            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=");
-            //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=");
-            //HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=
-            myDeviceClient.OpenAsync().Wait();
-
-            myDeviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, this).GetAwaiter().GetResult();
-
-            ledPin = (twin.Properties.Desired["floatSwitchTwo"].ToString() == "ON") ? 1 : 5;
-            //twin.Properties.Desired["floatSwitchTwo"] = "DESIREDOFF222";
-            twin.Properties.Reported["floatSwitchTwo"] = "DESIREDOFF222";
-
-
-            DesiredTimeDelay = twin.Properties.Desired[nameof(DesiredTimeDelay)];
-            BtnToggleLowIsChecked = twin.Properties.Desired[nameof(BtnToggleLowIsChecked)];
-            BtnToggleMiddleIsChecked = twin.Properties.Desired[nameof(BtnToggleMiddleIsChecked)];
-            BtnToggleHighIsChecked = twin.Properties.Desired[nameof(BtnToggleHighIsChecked)];
-
-            HourlyCount = twin.Properties.Desired[nameof(HourlyCount)];
-            HourlyAverage1 = twin.Properties.Desired[nameof(HourlyAverage1)];
-            HourlyAverage2 = twin.Properties.Desired[nameof(HourlyAverage2)];
-            HourlyAverage3 = twin.Properties.Desired[nameof(HourlyAverage3)];
-            HourlyAverage4 = twin.Properties.Desired[nameof(HourlyAverage4)];
-            HourlyAverage5 = twin.Properties.Desired[nameof(HourlyAverage5)];
-            HourlyAverage6 = twin.Properties.Desired[nameof(HourlyAverage6)];
-
-            //registryManager.UpdateTwinAsync("MyAzureID2", twin, "AAAAAAAAAFY=").GetAwaiter();
-            // Set reported properties based on actual device settings
-            TwinCollection reportedProperties = new();
-
-            //reportedProperties.Contains(nameof(DesiredTimeDelay))
-            reportedProperties[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
-            reportedProperties[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
-            reportedProperties[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
-            reportedProperties[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
-            reportedProperties[nameof(HourlyCount)] = 0; //HourlyCount;
-            reportedProperties[nameof(HourlyAverage1)] = 0; //HourlyAverage1;
-            reportedProperties[nameof(HourlyAverage2)] = 0; //HourlyAverage2;
-            reportedProperties[nameof(HourlyAverage3)] = 0; //HourlyAverage3;
-            reportedProperties[nameof(HourlyAverage4)] = 0; //HourlyAverage4;
-            reportedProperties[nameof(HourlyAverage5)] = 0; //HourlyAverage5;
-            reportedProperties[nameof(HourlyAverage6)] = 0; //HourlyAverage6;
-
-
-            //Update device twin stored in the cloud
-            await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties);
-
-            // Create a handler for the direct method call
-            await myDeviceClient.SetMethodHandlerAsync("SetMyTaskDelay", SetMyTaskDelay, this);
-            // Create a handler for the direct method call
-            await myDeviceClient.SetMethodHandlerAsync("SoundAlarm2", SoundAlarm2, null);
-
-            // Create a producer client that you can use to send events to an event hub
-            //producerClient = new EventHubBufferedProducerClient(connectionString, eventHubName);
-            producerClient = new EventHubProducerClient(connectionString, eventHubName);
-
-            // The failure handler is required and invoked after all allowable
-            // retries were applied.
-
-            //producerClient.SendEventBatchFailedAsync += args =>
-            //{
-            //    Debug.WriteLine($"Publishing failed for { args.EventBatch.Count } events.  Error: '{ args.Exception.Message }'");
-            //    return Task.CompletedTask;
-            //};
-
-            //// The success handler is optional.
-
-            //producerClient.SendEventBatchSucceededAsync += args =>
-            //{
-            //    Debug.WriteLine($"{ args.EventBatch.Count } events were published to partition: '{ args.PartitionId }.");
-            //    return Task.CompletedTask;
-            //};
-            EventDataBatch generateData;
-            List<string> device = new();
-
             try
             {
+                Twin twin;
+
+
+                List<Days> days = Enum.GetValues(typeof(Days))
+                          .Cast<Days>()
+                          .ToList();
+
+                //  days.Average(x => x);
+
+                Console.WriteLine(String.Join(Environment.NewLine, days));
+
+
+                Days[] days2 = (Days[])Enum.GetValues(typeof(Days));
+                Console.WriteLine(String.Join(Environment.NewLine, days));
+
+                var days3 = Enum.GetValues(typeof(Days))
+                    .Cast<Days>()
+                    .Select(d => (d, (int)d))
+                    .ToList();
+
+                Console.WriteLine(String.Join(Environment.NewLine, days3));
+
+                Dictionary<string, int> days4 = Enum.GetValues(typeof(Days))
+                                    .Cast<Days>()
+                                    .ToDictionary(k => k.ToString(), v => (int)v);
+
+                Console.WriteLine(String.Join(Environment.NewLine, days4));
+
+                List<int> grades = new() { 78, 92, 100, 37, 81 };
+                double average = grades.Average();
+                Console.WriteLine("The average grade is {0}.", average);
+
+
+                var players = new List<Player> {
+                new Player { Name = "Alex", Team = "A", Score = 10 },
+                new Player { Name = "Anna", Team = "A", Score = 20 },
+                new Player { Name = "Luke", Team = "L", Score = 60 },
+                new Player { Name = "Lucy", Team = "L", Score = 40 },
+                };
+
+                //players._items[0].Name
+                //players._items[0].DayOfWeek
+                //players.Single(tmpPlayer => tmpPlayer.Name == "Alex")
+                //players.Sum(tmpScrore => tmpScrore.Score)
+
+
+                HourlyAverageClasses.Add(new HourlyAverageClass() { Name = "HourlyAverage1", HourlyAverageShiftTime = DateTime.Now });
+                HourlyAverageClasses.Add(new HourlyAverageClass() { Name = "HourlyAverage2", HourlyAverageShiftTime = DateTime.Now });
+                HourlyAverageClasses.Add(new HourlyAverageClass() { Name = "HourlyAverage3", HourlyAverageShiftTime = DateTime.Now });
+                HourlyAverageClasses.Add(new HourlyAverageClass() { Name = "HourlyAverage4", HourlyAverageShiftTime = DateTime.Now });
+                HourlyAverageClasses.Add(new HourlyAverageClass() { Name = "HourlyAverage5", HourlyAverageShiftTime = DateTime.Now });
+                HourlyAverageClasses.Add(new HourlyAverageClass() { Name = "HourlyAverage6", HourlyAverageShiftTime = DateTime.Now });
+
+
+                //List<HourlyAverageClass> HourlyAverageClasses = new List<HourlyAverageClass>();
+                //HourlyAverageClasses2 = new List<HourlyAverageClass>();
+                string HAC_Name = HourlyAverageClasses.First().Name.ToString();
+                //HourlyAverageClasses2.First()
+                string v = nameof(HourlyAverageClasses);
+
+
+                grades.Capacity = 90;
+                grades.RemoveAt(0);
+                var teamAverageScores =
+                    from player in players
+                    group player by player.Team into playerGroup
+                    select new
+                    {
+                        Team = playerGroup.Key,
+                        AverageScore = playerGroup.Average(x => x.Score),
+                    };
+
+
+                List<double> list = new();
+
+                //DeviceClient myDeviceClientTEMP = DeviceClient.//Create( IotHubUri, new DeviceAuthenticationWithRegistrySymmetricKey(DeviceId, DeviceKey), Microsoft.Azure.Devices.Client.TransportType.Mqtt); //TransportType.Mqtt
+
+                // Example --- int me2 = ("5" == "5") ? 1 : 0;
+                //Twin twin = myDeviceClient.GetTwinAsync().ConfigureAwait(true);
+
+                twin = await myDeviceClient.GetTwinAsync();
+                TwinCollection desiredProperties = twin.Properties.Desired;
+                //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=");
+                //registryManager = RegistryManager.CreateFromConnectionString("HostName=MyIOTHubFeb2019.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=O61Lh8sR/AKURvN7xo6G05AJzlJsBcG78Fx2TVH8CHY=");
+                //HostName=MyIOTHubFeb2019.azure-devices.net;DeviceId=MyAzureID2;SharedAccessKey=ZaF8Ehv4nSW1R5J+/iEX2U/KuQ0JwZVz0jG+y9jcuyE=
+                myDeviceClient.OpenAsync().Wait();
+
+                myDeviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, this).GetAwaiter().GetResult();
+
+                WhileSpeed = twin.Properties.Desired[nameof(WhileSpeed)];
+                FloatSpeed = twin.Properties.Desired[nameof(FloatSpeed)];
+                SwitchEventAlertTimeDifference = twin.Properties.Desired[nameof(SwitchEventAlertTimeDifference)];
+                EnableEmailAlerts = twin.Properties.Desired[nameof(EnableEmailAlerts)];
+
+
+                DesiredTimeDelay = twin.Properties.Desired[nameof(DesiredTimeDelay)];
+                BtnToggleLowIsChecked = twin.Properties.Desired[nameof(BtnToggleLowIsChecked)];
+                BtnToggleMiddleIsChecked = twin.Properties.Desired[nameof(BtnToggleMiddleIsChecked)];
+                BtnToggleHighIsChecked = twin.Properties.Desired[nameof(BtnToggleHighIsChecked)];
+
+                HourlyCount = twin.Properties.Desired[nameof(HourlyCount)];
+                HourlyAverage1 = twin.Properties.Desired[nameof(HourlyAverage1)];
+                HourlyAverage2 = twin.Properties.Desired[nameof(HourlyAverage2)];
+                HourlyAverage3 = twin.Properties.Desired[nameof(HourlyAverage3)];
+                HourlyAverage4 = twin.Properties.Desired[nameof(HourlyAverage4)];
+                HourlyAverage5 = twin.Properties.Desired[nameof(HourlyAverage5)];
+                HourlyAverage6 = twin.Properties.Desired[nameof(HourlyAverage6)];
+
+                //registryManager.UpdateTwinAsync("MyAzureID2", twin, "AAAAAAAAAFY=").GetAwaiter();
+                // Set reported properties based on actual device settings
+                TwinCollection reportedProperties = new();
+
+                //reportedProperties.Contains(nameof(DesiredTimeDelay))
+                reportedProperties[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
+                reportedProperties[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
+                reportedProperties[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+                reportedProperties[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+                reportedProperties[nameof(HourlyCount)] = 0; //HourlyCount;
+                reportedProperties[nameof(HourlyAverage1)] = 0; //HourlyAverage1;
+                reportedProperties[nameof(HourlyAverage2)] = 0; //HourlyAverage2;
+                reportedProperties[nameof(HourlyAverage3)] = 0; //HourlyAverage3;
+                reportedProperties[nameof(HourlyAverage4)] = 0; //HourlyAverage4;
+                reportedProperties[nameof(HourlyAverage5)] = 0; //HourlyAverage5;
+                reportedProperties[nameof(HourlyAverage6)] = 0; //HourlyAverage6;
+
+
+                //Update device twin stored in the cloud
+                await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties);
+
+                // Create a handler for the direct method call
+                await myDeviceClient.SetMethodHandlerAsync("SetMyTaskDelay", SetMyTaskDelay, this);
+                // Create a handler for the direct method call
+                await myDeviceClient.SetMethodHandlerAsync("SoundAlarm2", SoundAlarm2, null);
+
+                // Create a producer client that you can use to send events to an event hub
+                //producerClient = new EventHubBufferedProducerClient(connectionString, eventHubName);
+                producerClient = new EventHubProducerClient(connectionString, eventHubName);
+
+                // The failure handler is required and invoked after all allowable
+                // retries were applied.
+
+                //producerClient.SendEventBatchFailedAsync += args =>
+                //{
+                //    Debug.WriteLine($"Publishing failed for { args.EventBatch.Count } events.  Error: '{ args.Exception.Message }'");
+                //    return Task.CompletedTask;
+                //};
+
+                //// The success handler is optional.
+
+                //producerClient.SendEventBatchSucceededAsync += args =>
+                //{
+                //    Debug.WriteLine($"{ args.EventBatch.Count } events were published to partition: '{ args.PartitionId }.");
+                //    return Task.CompletedTask;
+                //};
+                EventDataBatch generateData;
+                List<string> device = new();
+
                 var eventData = new EventData("Hello, Event Hubs!")
                 {
                     MessageId = "H1",
@@ -380,12 +476,13 @@ namespace ConsoleApp1
 
         }
 
+        private GpioController gpioController;
+
 #if RASPBERRY
-        public GpioController Gpio { get; set; } = new GpioController();
+        //public GpioController Gpio { get; set; } = new GpioController();
 #else
 
 #endif
-        private static readonly GpioController gpioController;
 
         #region Set_GPIO_PinsNbrs
 
@@ -404,7 +501,7 @@ namespace ConsoleApp1
         /// <see cref="https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/documentation-comments#code"/>
         /// </example>    
         /// </summary>
-        private int Pin_FloatSwitchHigh { get => pin_FloatSwitchHigh; set => pin_FloatSwitchMedium = value; }
+        private int Pin_FloatSwitchHigh { get => pin_FloatSwitchHigh; set => pin_FloatSwitchHigh = value; }
 
         /// <summary>Property - <c>Pin_FloatSwitchHigh</c> is rendered as GPIO Input Pin 
         /// </summary>
@@ -436,12 +533,12 @@ namespace ConsoleApp1
         private PinValue pinvalueFloatSwitchIndicatorLedMedium;
         private PinValue pinvalueFloatSwitchIndicatorLedHigh;
 
-        public PinValue PinValueFloatSwitchLow { get { return pinValueFloatSwitchLow; } set { pinValueFloatSwitchLow = value; _ = RaisePropertyChanged(); } }
-        public PinValue PinValueFloatSwitchMedium { get { return pinValueFloatSwitchMedium; } set { pinValueFloatSwitchMedium = value; _ = RaisePropertyChanged(); } }
-        public PinValue PinValueFloatSwitchHigh { get { return pinValueFloatSwitchHigh; } set { pinValueFloatSwitchHigh = value; _ = RaisePropertyChanged(); } }
-        public PinValue PinvalueFloatSwitchIndicatorLedLow { get { return pinvalueFloatSwitchIndicatorLedLow; } set { pinvalueFloatSwitchIndicatorLedLow = value; _ = RaisePropertyChanged(); } }
-        public PinValue PinvalueFloatSwitchIndicatorLedMedium { get { return pinvalueFloatSwitchIndicatorLedMedium; } set { pinvalueFloatSwitchIndicatorLedMedium = value; _ = RaisePropertyChanged(); } }
-        public PinValue PinvalueFloatSwitchIndicatorLedHigh { get { return pinvalueFloatSwitchIndicatorLedHigh; } set { pinvalueFloatSwitchIndicatorLedHigh = value; _ = RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchLow { get { return pinValueFloatSwitchLow; } set { pinValueFloatSwitchLow = value; RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchMedium { get { return pinValueFloatSwitchMedium; } set { pinValueFloatSwitchMedium = value; RaisePropertyChanged(); } }
+        public PinValue PinValueFloatSwitchHigh { get { return pinValueFloatSwitchHigh; } set { pinValueFloatSwitchHigh = value; RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedLow { get { return pinvalueFloatSwitchIndicatorLedLow; } set { pinvalueFloatSwitchIndicatorLedLow = value; RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedMedium { get { return pinvalueFloatSwitchIndicatorLedMedium; } set { pinvalueFloatSwitchIndicatorLedMedium = value; RaisePropertyChanged(); } }
+        public PinValue PinvalueFloatSwitchIndicatorLedHigh { get { return pinvalueFloatSwitchIndicatorLedHigh; } set { pinvalueFloatSwitchIndicatorLedHigh = value; RaisePropertyChanged(); } }
 
         #endregion
 
@@ -451,9 +548,9 @@ namespace ConsoleApp1
         //private readonly int pin_PIRLedPin = 27;
         //private readonly int pin_PIR_Pin = 16;
 
-        private int ledPin;
-        private int pIR_LedPin;
-        private int pIR_Pin;
+//        private int ledPin;
+//        private int pIR_LedPin;
+//        private int pIR_Pin;
 
         /// <summary>
         ///     Mike Drives the specified value onto the general purpose I/O (GPIO) pin according
@@ -461,11 +558,6 @@ namespace ConsoleApp1
         ///     or updates the latched output value for the pin if the pin is configured as an
         ///     input.
         /// </summary>
-        public int LedPin { get { return ledPin; } set { ledPin = value; _ = RaisePropertyChanged(); } }
-
-        public int PIRLedPin { get { return pIR_LedPin; } set { pIR_LedPin = value; _ = RaisePropertyChanged(); } }
-
-        public int PIR_Pin { get { return pIR_Pin; } set { pIR_Pin = value; _ = RaisePropertyChanged(); } }
 
         public string StrFloatSwitchStatusMsg { get => strFloatSwitchStatusMsg; set => strFloatSwitchStatusMsg = value; }
         private string GpioMsg { get => gpioMsg; set => gpioMsg = value; }
@@ -486,37 +578,38 @@ namespace ConsoleApp1
         public int HourlyCount
         {
             get { return iHourlyCount; }
-            set { iHourlyCount = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyCount = value; HourlyCountPropertyChanged(DateTime.Now); 
+        }
         }
         public int HourlyAverage1
         {
             get { return iHourlyAverage1; }
-            set { iHourlyAverage1 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyAverage1 = value; }
         }
         public int HourlyAverage2
         {
             get { return iHourlyAverage2; }
-            set { iHourlyAverage2 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyAverage2 = value; }
         }
         public int HourlyAverage3
         {
             get { return iHourlyAverage3; }
-            set { iHourlyAverage3 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyAverage3 = value; }
         }
         public int HourlyAverage4
         {
             get { return iHourlyAverage4; }
-            set { iHourlyAverage4 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyAverage4 = value; }
         }
         public int HourlyAverage5
         {
             get { return iHourlyAverage5; }
-            set { iHourlyAverage5 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyAverage5 = value; }
         }
         public int HourlyAverage6
         {
             get { return iHourlyAverage6; }
-            set { iHourlyAverage6 = value; _ = HourlyCountPropertyChanged(DateTime.Now); }
+            set { iHourlyAverage6 = value; }
         }
 
         #region btnToggel
@@ -528,19 +621,19 @@ namespace ConsoleApp1
         public bool BtnToggleHighIsChecked
         {
             get { return btnToggleHighIsChecked; }
-            set { btnToggleHighIsChecked = value; _ = RaisePropertyChanged(); }
+            set { btnToggleHighIsChecked = value; RaisePropertyChanged(); }
         }
 
         public bool BtnToggleMiddleIsChecked
         {
             get { return btnToggleMiddleIsChecked; }
-            set { btnToggleMiddleIsChecked = value; _ = RaisePropertyChanged(); }
+            set { btnToggleMiddleIsChecked = value; RaisePropertyChanged(); }
         }
 
         public bool BtnToggleLowIsChecked
         {
             get { return btnToggleLowIsChecked; }
-            set { btnToggleLowIsChecked = value; _ = RaisePropertyChanged(); }
+            set { btnToggleLowIsChecked = value; RaisePropertyChanged(); }
         }
 
 
@@ -566,18 +659,18 @@ namespace ConsoleApp1
         public bool IsAzureConnected
         {
             get { return _isAzureConnected; }
-            set { _isAzureConnected = value; _ = RaisePropertyChanged(); }
+            set { _isAzureConnected = value; RaisePropertyChanged(); }
         }
 
         public string CloudToDeviceLog
         {
             get { return _cloudToDeviceLog; }
-            set { _cloudToDeviceLog = value; _ = RaisePropertyChanged(); }
+            set { _cloudToDeviceLog = value; RaisePropertyChanged(); }
         }
         public string TextBlockString
         {
             get { return textBlockString; }
-            set { textBlockString = value; _ = RaisePropertyChanged(); }
+            set { textBlockString = value; RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -587,10 +680,10 @@ namespace ConsoleApp1
         public string EmailDistributionGroup
         {
             get { return emailDistributionGroup; }
-            set { emailDistributionGroup = value; _ = RaisePropertyChanged(); }
+            set { emailDistributionGroup = value; RaisePropertyChanged(); }
         }
 
-        private double myTaskDelay = 1;
+        private double myTaskDelay = 120;
         /// <summary>
         /// 
         ///     Number of Seconds to wait before repeating Condition Test of State
@@ -598,10 +691,57 @@ namespace ConsoleApp1
         public double MyTaskDelay
         {
             get { return myTaskDelay; }
-            set { myTaskDelay = value; _ = RaisePropertyChanged(); }
+            set { if (myTaskDelay != value) { myTaskDelay = value; RaisePropertyChanged(); } }
         }
 
-        private double desiredTimeDelay = 20;
+        public void MyTaskDelayPropertyChanged([CallerMemberName] string prop = null)
+        {
+            if (prop != null)
+            {
+                //Test Comment no meaing at all
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+            }
+        }
+
+
+        private int whileSpeed = 1;
+        /// <summary>
+        /// 
+        ///     Number of Seconds to wait before repeating Condition Test of State
+        /// </summary>
+        public int WhileSpeed
+        {
+            get { return whileSpeed; }
+            set { if (whileSpeed != value) { whileSpeed = value; } }
+        }
+
+        private double floatSpeed = 10;
+        /// <summary>
+        /// 
+        ///     Number of Seconds to wait before repeating Condition Test of State
+        /// </summary>
+        public double FloatSpeed
+        {
+            get { return floatSpeed; }
+            set { if (floatSpeed != value) { floatSpeed = value; } }
+        }
+
+        private Boolean enableEmailAlerts = true;
+        /// <summary>
+        /// 
+        ///     Number of Seconds to wait before repeating Condition Test of State
+        /// </summary>
+        public Boolean EnableEmailAlerts
+        {
+            get { return enableEmailAlerts; }
+            set { if (enableEmailAlerts != value) { enableEmailAlerts = value; } }
+        }
+
+
+
+
+
+        private double desiredTimeDelay = 60;
         /// <summary>
         /// 
         ///     Number of Seconds to wait before repeating Condition Test of State
@@ -621,7 +761,7 @@ namespace ConsoleApp1
         public string YesterdayDay
         {
             get { return yesterdayDay; }
-            set { yesterdayDay = value; _ = RaisePropertyChanged(); }
+            set { yesterdayDay = value; RaisePropertyChanged(); }
         }
 
         public object TextBlockSlider { get; set; }
@@ -629,6 +769,9 @@ namespace ConsoleApp1
 
         #region switchEventAlerttimeDifference
 
+
+
+        private string switchEventAlertTimeDifference = "5";
         private string switchEventAlertTimeDifferenceTop = "5"; //Default Number of minutes to wait before sending Alert email
         private string switchEventAlertTimeDifferenceMiddle = "5"; //Default Number of minutes to wait before sending Alert email
         private string switchEventAlertTimeDifferenceHighErr = "5"; //Default Number of minutes to wait before sending Alert email
@@ -638,10 +781,22 @@ namespace ConsoleApp1
         /// 
         ///     Number of minutes to wait before sending Alert email
         /// </summary>
+        public string SwitchEventAlertTimeDifference
+        {
+            get { return switchEventAlertTimeDifference; }
+            set { switchEventAlertTimeDifference = value; RaisePropertyChanged(); }
+        }
+
+
+
+        /// <summary>
+        /// 
+        ///     Number of minutes to wait before sending Alert email
+        /// </summary>
         public string SwitchEventAlertTimeDifferenceTop
         {
             get { return switchEventAlertTimeDifferenceTop; }
-            set { switchEventAlertTimeDifferenceTop = value; _ = RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceTop = value; RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -651,7 +806,7 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceMiddle
         {
             get { return switchEventAlertTimeDifferenceMiddle; }
-            set { switchEventAlertTimeDifferenceMiddle = value; _ = RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceMiddle = value; RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -661,7 +816,7 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceHighErr
         {
             get { return switchEventAlertTimeDifferenceHighErr; }
-            set { switchEventAlertTimeDifferenceHighErr = value; _ = RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceHighErr = value; RaisePropertyChanged(); }
         }
 
         /// <summary>
@@ -671,7 +826,7 @@ namespace ConsoleApp1
         public string SwitchEventAlertTimeDifferenceReset
         {
             get { return switchEventAlertTimeDifferenceHighReset; }
-            set { switchEventAlertTimeDifferenceHighReset = value; _ = RaisePropertyChanged(); }
+            set { switchEventAlertTimeDifferenceHighReset = value; RaisePropertyChanged(); }
         }
 
         #endregion
@@ -694,13 +849,13 @@ namespace ConsoleApp1
         public string AlertTriggeredTimeTopLast
         {
             get { return alertTriggeredTimeTopLast; }
-            set { alertTriggeredTimeTopLast = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeTopLast = value; RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeTop
         {
             get { return alertTriggeredTimeTop; }
-            set { alertTriggeredTimeTop = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeTop = value; RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeMiddleLast
@@ -708,38 +863,38 @@ namespace ConsoleApp1
             get { return alertTriggeredTimeMiddleLast; }
             set
             {
-                alertTriggeredTimeMiddleLast = value; _ = RaisePropertyChanged();
+                alertTriggeredTimeMiddleLast = value; RaisePropertyChanged();
             }
         }
 
         public string AlertTriggeredTimeMiddle
         {
             get { return alertTriggeredTimeMiddle; }
-            set { alertTriggeredTimeMiddle = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeMiddle = value; RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeErrLast
         {
             get { return alertTriggeredTimeErrLast; }
-            set { alertTriggeredTimeErrLast = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeErrLast = value; RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeErr
         {
             get { return alertTriggeredTimeErr; }
-            set { alertTriggeredTimeErr = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeErr = value; RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeResetLast
         {
             get { return alertTriggeredTimeResetLast; }
-            set { alertTriggeredTimeResetLast = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeResetLast = value; RaisePropertyChanged(); }
         }
 
         public string AlertTriggeredTimeReset
         {
             get { return alertTriggeredTimeReset; }
-            set { alertTriggeredTimeReset = value; _ = RaisePropertyChanged(); }
+            set { alertTriggeredTimeReset = value; RaisePropertyChanged(); }
         }
 
         public bool SendEventData { get => sendEventData; set => sendEventData = value; }
@@ -816,6 +971,11 @@ namespace ConsoleApp1
                 //Pin_FloatSwitchIndicatorLedHigh.DebounceTimeout = TimeSpan.FromSeconds(1);
                 //Pin_FloatSwitchIndicatorLedHigh.Write(GpioPinValue.Low);
 
+                gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.Low);
+                gpioController.Write(pin_FloatSwitchIndicatorLedMedium, PinValue.Low);
+                gpioController.Write(pin_FloatSwitchIndicatorLedHigh, PinValue.Low);
+
+
                 gpioController.OpenPin(17);
                 gpioController.OpenPin(27);
                 gpioController.OpenPin(16);
@@ -867,14 +1027,20 @@ namespace ConsoleApp1
                         //PirLEDStatus = true;
                         BtnToggleLowIsChecked = false;
                         gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.Low);
+
+                        HourlyCount = HourlyCount;
+
                         //gpioController.Write((int)sender, PinValue.Low);   // ***  Reason Floatswitch is Open
                     }
                     else                                    // *** Floatswitch Closed
                     {
-                        BtnToggleLowIsChecked = true;
-                        gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.High);
+                        if (BtnToggleLowIsChecked == false)
+                        {
+                            BtnToggleLowIsChecked = true;
+                            gpioController.Write(pin_FloatSwitchIndicatorLedLow, PinValue.High);
 
-                        HourlyCount += 1;
+                            HourlyCount += 1;
+                        }
                         //gpioController.Write((int)sender, PinValue.High);  // *** Reason Floatswitch Close
                     }
                 }
@@ -1071,7 +1237,7 @@ namespace ConsoleApp1
                 //Turn the LED Status Light on - we're ready for another picture
                 //LightPIR_LED(false);
             }
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         private void Pin_FloatSwitchHigh_ValueChanged(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
@@ -1183,13 +1349,13 @@ namespace ConsoleApp1
                 //Turn the LED Status Light on - we're ready for another picture
                 //LightPIR_LED(false);
             }
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         #endregion
 
-        //public async Task<Task> FloatSwitchStatusAlertWatch()
-        public void FloatSwitchStatusAlertWatch()
+        public async Task<Task> FloatSwitchStatusAlertWatch()
+        //public void FloatSwitchStatusAlertWatch()
         {
             bool AlertTriggeredReset = false;
             bool AlertTriggeredMiddle = false;
@@ -1216,191 +1382,219 @@ namespace ConsoleApp1
             AlertTriggeredTimeMiddle = "";
             AlertTriggeredTimeTop = "";
             AlertTriggeredTimeErr = "";
+            CancellationTokenSource ts = new CancellationTokenSource();
+            Task tsFloat;
 
-            //           while (true)
-            //            {
-            try
+
+            switchEventAlertTimeDifferenceTop = SwitchEventAlertTimeDifference; //Default Number of minutes to wait before sending Alert email
+            switchEventAlertTimeDifferenceMiddle = SwitchEventAlertTimeDifference; //Default Number of minutes to wait before sending Alert email
+            switchEventAlertTimeDifferenceHighErr = SwitchEventAlertTimeDifference; //Default Number of minutes to wait before sending Alert email
+            switchEventAlertTimeDifferenceHighReset = SwitchEventAlertTimeDifference;
+
+
+
+            while (true)
             {
-                SwitchEventTime = DateTime.Now;
 
-                if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == false)
+                switchEventAlertTimeDifferenceTop = SwitchEventAlertTimeDifference; //Default Number of minutes to wait before sending Alert email
+                switchEventAlertTimeDifferenceMiddle = SwitchEventAlertTimeDifference; //Default Number of minutes to wait before sending Alert email
+                switchEventAlertTimeDifferenceHighErr = SwitchEventAlertTimeDifference; //Default Number of minutes to wait before sending Alert email
+                switchEventAlertTimeDifferenceHighReset = SwitchEventAlertTimeDifference;
+
+                try
                 {
-                    // Condition1 is true.
-                    // Sub Pump is working
+                    SwitchEventTime = DateTime.Now;
 
-                    StrFloatSwitchStatusMsg = "All Float Switches, Low Time: " + DateTime.Now.ToString();
-                    TextBlockString = StrFloatSwitchStatusMsg;
-
-                    if (AlertTriggeredMiddle == true | AlertTriggeredTop == true | AlertTriggeredErr == true)
+                    if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == false)
                     {
-                        AlertTriggeredMiddle = false;
-                        AlertTriggeredTop = false;
-                        AlertTriggeredErr = false;
+                        // Condition1 is true.
+                        // Sub Pump is working
 
-                        //SwitchEventAlertTimeReset = SwitchEventTime;
-                        //if(AlertTriggeredReset == false) { AlertTriggeredTimeResetLast = AlertTriggeredTimeReset; }
-                        SwitchEventAlertTimeReset = SwitchEventTime;
-                        AlertTriggeredReset = true;
-                        AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
-                        AlertDailyCounterReset += 1;
+                        StrFloatSwitchStatusMsg = "All Float Switches, Low Time: " + DateTime.Now.ToString();
+                        TextBlockString = StrFloatSwitchStatusMsg;
 
-                        AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
+                        if (AlertTriggeredMiddle == true | AlertTriggeredTop == true | AlertTriggeredErr == true)
+                        {
+                            AlertTriggeredMiddle = false;
+                            AlertTriggeredTop = false;
+                            AlertTriggeredErr = false;
 
-                        SendEventsToTopic();
+                            //SwitchEventAlertTimeReset = SwitchEventTime;
+                            //if(AlertTriggeredReset == false) { AlertTriggeredTimeResetLast = AlertTriggeredTimeReset; }
+                            SwitchEventAlertTimeReset = SwitchEventTime;
+                            AlertTriggeredReset = true;
+                            AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
+                            AlertDailyCounterReset += 1;
+
+                            AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
+
+                            SendEventsToTopic();
+                        }
+                        else
+                        {
+                            isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceReset, out StrToInt);
+                            //isParsable = false; // remove this line after interval.minutes is greater than 60 minutes is fighured out
+
+                            if (isParsable)
+                            {
+                                //SwitchEventAlertTimeMiddle = new DateTime();
+                                TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeReset;
+                                if (interval.Minutes >= StrToInt)
+                                {
+
+                                    // this needs worked when interval.minutes is greater than 60 minutes 
+                                    AlertTriggeredReset = false;
+                                }
+                                else
+                                {
+                                    AlertTriggeredReset = true;
+                                }
+
+                                if (AlertTriggeredReset == false)
+                                {
+                                    AlertTriggeredReset = true;
+                                    SwitchEventAlertTimeReset = SwitchEventTime;
+                                    AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
+                                    AlertDailyCounterReset += 1;
+
+                                    AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
+                                    //SendEventsToTopic();
+                                }
+
+                            }
+                        }
+
                     }
-                    else
-                    {
-                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceReset, out StrToInt);
-                        isParsable = false; // remove this line after interval.minutes is greater than 60 minutes is fighured out
 
+                    if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == false)
+                    {
+                        // Condition1 is false and Condition2 is true.
+                        // Float switch Medium appears to have fault and Float Switch Hign sees potential flooding
+                        // Send Alarm - Total Failue
+
+                        StrFloatSwitchStatusMsg = "Float switch Medium appears to indicate potential flooding;  Time: " + DateTime.Now.ToString();
+                        TextBlockString = StrFloatSwitchStatusMsg;
+
+                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceMiddle, out StrToInt);
                         if (isParsable)
                         {
-                            //SwitchEventAlertTimeMiddle = new DateTime();
-                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeReset;
+                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeMiddle;
                             if (interval.Minutes >= StrToInt)
                             {
-
-                                // this needs worked when interval.minutes is greater than 60 minutes 
-                                //AlertTriggeredReset = false;
+                                AlertTriggeredMiddle = false;
                             }
-
-                            if (AlertTriggeredReset == false)
+                            if (AlertTriggeredMiddle == false)
                             {
-                                AlertTriggeredReset = true;
-                                SwitchEventAlertTimeReset = SwitchEventTime;
-                                AlertTriggeredTimeResetLast = AlertTriggeredTimeReset;
-                                AlertDailyCounterReset += 1;
+                                AlertTriggeredMiddle = true;
+                                SwitchEventAlertTimeMiddle = SwitchEventTime;
+                                AlertTriggeredTimeMiddleLast = AlertTriggeredTimeMiddle;
+                                AlertDailyCounterMiddle += 1;
 
-                                AlertTriggeredTimeReset = SwitchEventAlertTimeReset.ToString();
+                                AlertTriggeredTimeMiddle = SwitchEventAlertTimeMiddle.ToString();
                                 SendEventsToTopic();
                             }
 
                         }
                     }
 
-                }
-
-                if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == false)
-                {
-                    // Condition1 is false and Condition2 is true.
-                    // Float switch Medium appears to have fault and Float Switch Hign sees potential flooding
-                    // Send Alarm - Total Failue
-
-                    StrFloatSwitchStatusMsg = "Float switch Medium appears to indicate potential flooding;  Time: " + DateTime.Now.ToString();
-                    TextBlockString = StrFloatSwitchStatusMsg;
-
-                    isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceMiddle, out StrToInt);
-                    if (isParsable)
+                    if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == true)
                     {
-                        TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeMiddle;
-                        if (interval.Minutes >= StrToInt)
+                        // Condition1 and Condition2 are false. Condition3 and Condition4 are true.
+                        // Float switch Medium indicationg Initial failure
+                        // Send Alarm - Initial Failue
+
+                        StrFloatSwitchStatusMsg = "Float switch Medium & High are indicating Major flooding;  Time: " + DateTime.Now.ToString();
+                        TextBlockString = StrFloatSwitchStatusMsg;
+
+                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceTop, out StrToInt);
+                        if (isParsable)
                         {
-                            AlertTriggeredMiddle = false;
-                        }
-                        if (AlertTriggeredMiddle == false)
-                        {
-                            AlertTriggeredMiddle = true;
-                            SwitchEventAlertTimeMiddle = SwitchEventTime;
-                            AlertTriggeredTimeMiddleLast = AlertTriggeredTimeMiddle;
-                            AlertDailyCounterMiddle += 1;
+                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeTop;
+                            if (interval.Minutes >= StrToInt)
+                            {
+                                AlertTriggeredTop = false;
+                            }
+                            if (AlertTriggeredTop == false)
+                            {
+                                AlertTriggeredTop = true;
+                                SwitchEventAlertTimeTop = SwitchEventTime;
+                                AlertTriggeredTimeTopLast = AlertTriggeredTimeTop;
+                                AlertDailyCounterHigh += 1;
 
-                            AlertTriggeredTimeMiddle = SwitchEventAlertTimeMiddle.ToString();
-                            SendEventsToTopic();
-                        }
-
-                    }
-                }
-
-                if (BtnToggleMiddleIsChecked == true & BtnToggleHighIsChecked == true)
-                {
-                    // Condition1 and Condition2 are false. Condition3 and Condition4 are true.
-                    // Float switch Medium indicationg Initial failure
-                    // Send Alarm - Initial Failue
-
-                    StrFloatSwitchStatusMsg = "Float switch Medium & High are indicating Major flooding;  Time: " + DateTime.Now.ToString();
-                    TextBlockString = StrFloatSwitchStatusMsg;
-
-                    isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceTop, out StrToInt);
-                    if (isParsable)
-                    {
-                        TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeTop;
-                        if (interval.Minutes >= StrToInt)
-                        {
-                            AlertTriggeredTop = false;
-                        }
-                        if (AlertTriggeredTop == false)
-                        {
-                            AlertTriggeredTop = true;
-                            SwitchEventAlertTimeTop = SwitchEventTime;
-                            AlertTriggeredTimeTopLast = AlertTriggeredTimeTop;
-                            AlertDailyCounterHigh += 1;
-
-                            AlertTriggeredTimeTop = SwitchEventAlertTimeTop.ToString();
-                            SendEventsToTopic();
+                                AlertTriggeredTimeTop = SwitchEventAlertTimeTop.ToString();
+                                SendEventsToTopic();
+                            }
                         }
                     }
-                }
 
-                if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == true)
-                {
-                    // Condition1, Condition2, and Condition3 are false.
-                    StrFloatSwitchStatusMsg = "Not Sure here;  Time: " + DateTime.Now.ToString();
-                    TextBlockString = StrFloatSwitchStatusMsg;
-
-                    isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceHighErr, out StrToInt);
-                    if (isParsable)
+                    if (BtnToggleMiddleIsChecked == false & BtnToggleHighIsChecked == true)
                     {
-                        TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeErr;
-                        if (interval.Minutes >= StrToInt)
-                        {
-                            AlertTriggeredErr = false;
-                        }
+                        // Condition1, Condition2, and Condition3 are false.
+                        StrFloatSwitchStatusMsg = "Not Sure here;  Time: " + DateTime.Now.ToString();
+                        TextBlockString = StrFloatSwitchStatusMsg;
 
-                        if (AlertTriggeredErr == false)
+                        isParsable = Int32.TryParse(SwitchEventAlertTimeDifferenceHighErr, out StrToInt);
+                        if (isParsable)
                         {
-                            AlertTriggeredErr = true;
-                            SwitchEventAlertTimeErr = SwitchEventTime;
-                            AlertTriggeredTimeErrLast = AlertTriggeredTimeErr;
-                            AlertDailyCounterErr += 1;
+                            TimeSpan interval = SwitchEventTime - SwitchEventAlertTimeErr;
+                            if (interval.Minutes >= StrToInt)
+                            {
+                                AlertTriggeredErr = false;
+                            }
 
-                            AlertTriggeredTimeErr = SwitchEventAlertTimeErr.ToString();
-                            SendEventsToTopic();
+                            if (AlertTriggeredErr == false)
+                            {
+                                AlertTriggeredErr = true;
+                                SwitchEventAlertTimeErr = SwitchEventTime;
+                                AlertTriggeredTimeErrLast = AlertTriggeredTimeErr;
+                                AlertDailyCounterErr += 1;
+
+                                AlertTriggeredTimeErr = SwitchEventAlertTimeErr.ToString();
+                                SendEventsToTopic();
+                            }
                         }
                     }
+
+                    if (YesterdayDay != SwitchEventTime.Day.ToString() & "8" != SwitchEventTime.Hour.ToString()) // 'Hour' defaults to 24-hour clock0800 AM 
+                    {   // Send daily Alert Status Count Email
+                        YesterdayDay = SwitchEventTime.Day.ToString();
+
+                        StrFloatSwitchStatusMsg = "Daily Report;  Time: " + DateTime.Now.ToString();
+                        TextBlockString = StrFloatSwitchStatusMsg;
+
+                        AlertDailyCounterReset = 0;
+                        AlertDailyCounterLow = 0;
+                        AlertDailyCounterMiddle = 0;
+                        AlertDailyCounterHigh = 0;
+                        AlertDailyCounterErr = 0;
+
+                        SendEventsToTopic();
+
+                    }
+
                 }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                }
+                finally
+                {
+                    Console.WriteLine("FloatSwitchStatusAlertWatch - Still Running " + DateTime.Now.ToString());
+                    //Task task3 = InitializeDeviceState();
 
-                if (YesterdayDay != SwitchEventTime.Day.ToString() & "8" != SwitchEventTime.Hour.ToString()) // 'Hour' defaults to 24-hour clock0800 AM 
-                {   // Send daily Alert Status Count Email
-                    YesterdayDay = SwitchEventTime.Day.ToString();
+                    // this task runs all the time with Delay as defined below
+                    //Thread.Sleep((Int32)(FloatSpeed * 1000));
+                    //await Task.Delay((Int32)(MyTaskDelay * 1000));//
+                    await Task.Delay((Int32)(FloatSpeed * 1000));//
 
-                    StrFloatSwitchStatusMsg = "Daily Report;  Time: " + DateTime.Now.ToString();
-                    TextBlockString = StrFloatSwitchStatusMsg;
+                    //tsFloat = Task.Run(() => {
+                    //    Task.Delay((int)(WhileSpeed * 1000)).Wait();
+                    //});
 
-                    AlertDailyCounterReset = 0;
-                    AlertDailyCounterLow = 0;
-                    AlertDailyCounterMiddle = 0;
-                    AlertDailyCounterHigh = 0;
-                    AlertDailyCounterErr = 0;
-
-                    SendEventsToTopic();
+                    //tsFloat.Wait();
 
                 }
-
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-            }
-            finally
-            {
-                Console.WriteLine("FloatSwitchStatusAlertWatch - Still Running " + DateTime.Now.ToString());
-                //Task task3 = InitializeDeviceState();
-
-                // this task runs all the time with Delay as defined below
-                //Thread.Sleep((Int32)(MyTaskDelay * 1000));
-                //await Task.Delay((Int32)(MyTaskDelay * 1000));//
-            }
-
         }
 
         /// <summary>
@@ -1435,8 +1629,11 @@ namespace ConsoleApp1
                 //details.Add(new userdetails { emailsubject = "FlostSwitch Status Warning", emailbody = FloatSwitchEmailMsg, eventtime = DateTime.Now.ToString() });
                 FloatSwitchEmailMsg = ""; //JsonConvert.SerializeObject(details);
 
-                client.PublishEventsAsync(topicHostname, eventsList).GetAwaiter().GetResult();
-                Console.Write("SendEventsToTopic::Published events to Event Grid topic. " + DateTime.Now.ToString());
+                if (EnableEmailAlerts)
+                {
+                    client.PublishEventsAsync(topicHostname, eventsList).GetAwaiter().GetResult();
+                    Console.Write("SendEventsToTopic::Published events to Event Grid topic. " + DateTime.Now.ToString());
+                }
                 Console.Write(StrFloatSwitchStatusMsg);
 
                 //Console.ReadLine();
@@ -1484,47 +1681,51 @@ namespace ConsoleApp1
 
         #region PropertChangeEvents
 
-        public async Task RaisePropertyChanged([CallerMemberName] string prop = null)
+        public void RaisePropertyChanged([CallerMemberName] string prop = null)
         {
             if (prop != null)
             {
-                if (prop == "PinValueFloatSwitchLow" || prop == "PinValueFloatSwitchMedium" || prop == "PinValueFloatSwitchHigh")
+                if (prop == "BtnToggleLowIsChecked" || prop == "BtnToggleMiddleIsChecked" || prop == "BtnToggleHighIsChecked" || prop == "MyTaskDelay")
+                //if (prop == "PinValueFloatSwitchLow" || prop == "PinValueFloatSwitchMedium" || prop == "PinValueFloatSwitchHigh")
                 {
                     Twin twin2 = new();
 
                     switch (prop)
                     {
-                        case "PinValueFloatSwitchLow":
+                        case "BtnToggleLowIsChecked":
                             twin2.Properties.Reported[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
                             break;
 
-                        case "PinValueFloatSwitchMedium":
+                        case "BtnToggleMiddleIsChecked":
                             twin2.Properties.Reported[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
                             break;
 
-                        case "PinValueFloatSwitchHigh":
+                        case "BtnToggleHighIsChecked":
                             twin2.Properties.Reported[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+                            break;
+
+                        case "MyTaskDelay":
+                            twin2.Properties.Reported[nameof(MyTaskDelay)] = MyTaskDelay;
                             break;
 
                         default:
                             break;
                     }
 
-                    await myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
-
+                    Task TaskAwaiter = myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
                 }
                 //Test Comment no meaing at all
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
             }
         }
-        public async Task HourlyCountPropertyChanged(DateTime CurrTime, [CallerMemberName] string prop = null)
+        public void HourlyCountPropertyChanged(DateTime CurrTime, [CallerMemberName] string prop = null)
         {
             if (prop == "HourlyCount")
             {
                 if (iHourlyCount != 0)
                 {
                     Twin twin2 = new();
-                    twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
+                    //twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
 
                     //Random r = new();
                     // creating object of TimeSpan
@@ -1539,29 +1740,47 @@ namespace ConsoleApp1
                     // Compare today to past time
                     //int comparison = CurrTime.CompareTo(LastPointInTime.AddSeconds(15));
                     //CurrTime.AddSeconds(11).CompareTo(LastPointInTime);
-                    if (DateTime.Compare(CurrTime, LastPointInTime.AddSeconds(120)) == 1)
+                    twin2.Properties.Reported[nameof(MyTaskDelay)] = MyTaskDelay;
+                    twin2.Properties.Reported[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
+                    twin2.Properties.Reported[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
+                    //twin2.Properties.Reported[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+                    //twin2.Properties.Reported[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+
+                    string HAC_Name = HourlyAverageClasses.First().Name.ToString();
+
+                    if (DateTime.Compare(DateTime.Now, LastPointInTime.AddMinutes(DesiredTimeDelay)) == 1)
                     {
-                        HourlyAverage6 = iHourlyAverage5;
-                        HourlyAverage5 = iHourlyAverage4;
-                        HourlyAverage4 = iHourlyAverage3;
-                        HourlyAverage3 = iHourlyAverage2;
-                        HourlyAverage2 = iHourlyAverage1;
-                        HourlyAverage1 = iHourlyCount;
+
+                        //List<HourlyAverageClass> HourlyAverageClasses2 = new List<HourlyAverageClass>();
+                        //HourlyAverageClasses2 = new List<HourlyAverageClass>();
+                        //string HAC_Name = HourlyAverageClasses2.First().Name.ToString();
+                        //HourlyAverageClasses2.First()
+                        //string v = nameof(HourlyAverageClasses2.First().Name);
+                        //HourlyAverage6 = iHourlyAverage5;
+                        //HourlyAverage5 = iHourlyAverage4;
+                        //HourlyAverage4 = iHourlyAverage3;
+                        //HourlyAverage3 = iHourlyAverage2;
+                        //HourlyAverage2 = iHourlyAverage1;
+
+                        twin2.Properties.Reported[HAC_Name] = HourlyCount;
+                        HourlyAverageClasses.Add(new HourlyAverageClass() { Name = HAC_Name, HourlyAverageShiftTime = DateTime.Now });
+                        HourlyAverageClasses.Remove(HourlyAverageClasses.First());
+
+                        //HourlyAverage1 = iHourlyCount;
                         HourlyCount = 0;
                         LastPointInTime = CurrTime;
-
-                        twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
-                        twin2.Properties.Reported[nameof(HourlyAverage1)] = HourlyAverage1;
-                        twin2.Properties.Reported[nameof(HourlyAverage2)] = HourlyAverage2;
-                        twin2.Properties.Reported[nameof(HourlyAverage3)] = HourlyAverage3;
-                        twin2.Properties.Reported[nameof(HourlyAverage4)] = HourlyAverage4;
-                        twin2.Properties.Reported[nameof(HourlyAverage5)] = HourlyAverage5;
-                        twin2.Properties.Reported[nameof(HourlyAverage6)] = HourlyAverage6;
-
                     }
 
+                    twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
+                    //twin2.Properties.Reported[nameof(HourlyAverage2)] = HourlyAverage2;
+                    //twin2.Properties.Reported[nameof(HourlyAverage3)] = HourlyAverage3;
+                    //twin2.Properties.Reported[nameof(HourlyAverage4)] = HourlyAverage4;
+                    //twin2.Properties.Reported[nameof(HourlyAverage5)] = HourlyAverage5;
+                    //twin2.Properties.Reported[nameof(HourlyAverage6)] = HourlyAverage6;
+
+
                     //Update device twin stored in the cloud
-                    await myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
+                    Task TaskAwaiter = myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
 
 
                 }
@@ -1581,16 +1800,16 @@ namespace ConsoleApp1
             if (pinValueChangedEventArgs.ChangeType == PinEventTypes.Rising)
             {
 #if RASPBERRY
-                if (Gpio.Read((int)sender) == PinValue.Low)
-                {
-                    Gpio.Write((int)sender, PinValue.High);
-                    //Gpio..Write(pin, ((ledOn) ? PinValue.High : PinValue.Low));
-                }
-                else
-                {
-                    Gpio.Write((int)sender, PinValue.Low);
-                }
-                Thread.Sleep(1000);  //Provide time for IO status to Change
+                //if (Gpio.Read((int)sender) == PinValue.Low)
+                //{
+                //    Gpio.Write((int)sender, PinValue.High);
+                //    //Gpio..Write(pin, ((ledOn) ? PinValue.High : PinValue.Low));
+                //}
+                //else
+                //{
+                //    Gpio.Write((int)sender, PinValue.Low);
+                //}
+                //Thread.Sleep(1000);  //Provide time for IO status to Change
 #endif
 
             }
@@ -1619,15 +1838,37 @@ namespace ConsoleApp1
                 twin2.Properties.Reported[nameof(MyTaskDelay)] = MyTaskDelay;
                 twin2.Properties.Reported[nameof(DesiredTimeDelay)] = DesiredTimeDelay;
                 twin2.Properties.Reported[nameof(BtnToggleLowIsChecked)] = BtnToggleLowIsChecked;
-                twin2.Properties.Reported[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
-                twin2.Properties.Reported[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+                //twin2.Properties.Reported[nameof(BtnToggleMiddleIsChecked)] = BtnToggleMiddleIsChecked;
+                //twin2.Properties.Reported[nameof(BtnToggleHighIsChecked)] = BtnToggleHighIsChecked;
+
+                string HAC_Name = HourlyAverageClasses.First().Name.ToString();
+
+                if (DateTime.Compare(DateTime.Now, LastPointInTime.AddMinutes(DesiredTimeDelay)) == 1)
+                {
+                    //HourlyAverage6 = iHourlyAverage5;
+                    //HourlyAverage5 = iHourlyAverage4;
+                    //HourlyAverage4 = iHourlyAverage3;
+                    //HourlyAverage3 = iHourlyAverage2;
+                    //HourlyAverage2 = iHourlyAverage1;
+                    //HourlyAverage1 = iHourlyCount;
+
+                    twin2.Properties.Reported[HAC_Name] = HourlyCount;
+                    HourlyAverageClasses.Add(new HourlyAverageClass() { Name = HAC_Name, HourlyAverageShiftTime = DateTime.Now });
+                    HourlyAverageClasses.Remove(HourlyAverageClasses.First());
+
+                    HourlyCount = 0;
+                    LastPointInTime = DateTime.Now;
+                }
+
+
+
                 twin2.Properties.Reported[nameof(HourlyCount)] = HourlyCount;
-                twin2.Properties.Reported[nameof(HourlyAverage1)] = HourlyAverage1;
-                twin2.Properties.Reported[nameof(HourlyAverage2)] = HourlyAverage2;
-                twin2.Properties.Reported[nameof(HourlyAverage3)] = HourlyAverage3;
-                twin2.Properties.Reported[nameof(HourlyAverage4)] = HourlyAverage4;
-                twin2.Properties.Reported[nameof(HourlyAverage5)] = HourlyAverage5;
-                twin2.Properties.Reported[nameof(HourlyAverage6)] = HourlyAverage6;
+                //twin2.Properties.Reported[nameof(HourlyAverage1)] = HourlyAverage1;
+                //twin2.Properties.Reported[nameof(HourlyAverage2)] = HourlyAverage2;
+                //twin2.Properties.Reported[nameof(HourlyAverage3)] = HourlyAverage3;
+                //twin2.Properties.Reported[nameof(HourlyAverage4)] = HourlyAverage4;
+                //twin2.Properties.Reported[nameof(HourlyAverage5)] = HourlyAverage5;
+                //twin2.Properties.Reported[nameof(HourlyAverage6)] = HourlyAverage6;
 
                 //TwinCollection reportedProperties = twin2.Properties.Reported;
 
@@ -1645,7 +1886,7 @@ namespace ConsoleApp1
                 //reportedProperties[nameof(HourlyAverage6)] = HourlyAverage6;
 
                 //Update device twin stored in the cloud
-                await myDeviceClient.UpdateReportedPropertiesAsync((TwinCollection)twin2.Properties.Reported);
+                await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties: twin2.Properties.Reported);
 
 
                 //Task task3 = InitializeDeviceState();
@@ -1687,7 +1928,7 @@ namespace ConsoleApp1
                 //Device result = await registryManager.UpdateDeviceAsync(device, true);
 
                 CancellationToken token = source.Token;
-                //await myDeviceClient.SendEventAsync(message, token);
+                //if (EnableEmailAlerts) await myDeviceClient.SendEventAsync(message, token);
 
                 Debug.WriteLine($"{DateTime.Now} > Sending message: {messageString}");
                 Console.WriteLine("SendDeviceToCloudMessagesAsync " + DateTime.Now.ToString());
@@ -1808,6 +2049,48 @@ namespace ConsoleApp1
 
         }
 
+        public static Task<MethodResponse> SetDesiredTimeDelay(MethodRequest methodRequest, object userContext)
+        {
+            //var cmdArg = JsonConvert.DeserializeObject<CommandArgument>(methodRequest.DataAsJson);
+            //switch (cmdArg.Command.ToLowerInvariant())
+            //{
+            //    case "normal":
+            //        minTemperature = 100;
+            //        maxTemperature = 700;
+            //        break;
+            //}
+
+            var data = Encoding.UTF8.GetString(methodRequest.Data);
+
+            // Check the payload is a double value
+            if (double.TryParse(data, out double telemetryIntervalInSeconds))
+            {
+                //Class1 mc = new();
+
+                ((Class1)userContext).DesiredTimeDelay = telemetryIntervalInSeconds;
+
+                // On a real engine this would sound the alarm as well as show the message
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"DesiredTimeDelay Time set to {telemetryIntervalInSeconds} seconds");
+                Console.ResetColor();
+                Debug.WriteLine($"DesiredTimeDelay Time set to {telemetryIntervalInSeconds} seconds");
+
+                //var response = JsonConvert.SerializeObject(new { acknowledged = Console.ReadLine() == "yes" });
+                var response = JsonConvert.SerializeObject(new { acknowledged = "DesiredTimeDelay Time set to " + telemetryIntervalInSeconds + " seconds" });
+                return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(response), 200));
+
+            }
+            else
+            {
+                // Acknowlege the direct method call with a 400 error message
+                string result = "{\"result\":\"Invalid parameter\"}";
+                return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
+
+            }
+
+        }
+
         //And in our simulated device, implement the SoundAlarm remote method which is being called.
         private static Task<MethodResponse> SoundAlarm2(MethodRequest methodRequest, object userContext)
         {
@@ -1844,7 +2127,7 @@ namespace ConsoleApp1
                 if (msg == "on")
                 {
 #if RASPBERRY
-                    Gpio.Write(pin_LedPin, PinValue.Low);
+                    //Gpio.Write(pin_LedPin, PinValue.Low);
                     //LedPin.Write(PinValue.Low);
 #endif
                 }
@@ -1852,7 +2135,7 @@ namespace ConsoleApp1
                 if (msg == "off")
                 {
 #if RASPBERRY
-                    Gpio.Write(pin_LedPin, PinValue.High);
+                    //Gpio.Write(pin_LedPin, PinValue.High);
                     //LedPin.Write(PinValue.High);
 #endif
                 }
@@ -1860,7 +2143,7 @@ namespace ConsoleApp1
                 if (msg == "PIR_Activated")
                 {
 #if RASPBERRY
-                    Gpio.Write(pin_PIR_Pin, PinValue.High);
+                    //Gpio.Write(pin_PIR_Pin, PinValue.High);
                     //PIR_Pin.Write(PinValue.High);
 #endif
                 }
@@ -1868,7 +2151,7 @@ namespace ConsoleApp1
                 if (msg == "PIR_Deactivated")
                 {
 #if RASPBERRY
-                    Gpio.Write(pin_PIR_Pin, PinValue.Low);
+                    //Gpio.Write(pin_PIR_Pin, PinValue.Low);
                     //PIR_Pin.Write(PinValue.Low);
 #endif
                 }
@@ -1914,47 +2197,54 @@ namespace ConsoleApp1
             public string Team;
             public int Score;
 
-        }
+        };
+
+        class HourlyAverageClass
+        {
+            public string Name;
+            public DateTime HourlyAverageShiftTime;
+            //public int Score;
+
+        };
+
+
+        //private async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
+        //{
+        //    Console.WriteLine("\tDesired property changed:");
+        //    Console.WriteLine($"\t{desiredProperties.ToJson()}");
+
+        //    Console.WriteLine("\tSending current time as reported property");
+        //    TwinCollection reportedProperties = new();
+        //    reportedProperties["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now;
+
+        //    await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
+        //}
+
+        //static IList<EventGridEvent> GetEventsList()
+        //{
+        //    List<EventGridEvent> eventsList = new List<EventGridEvent>();
+
+        //    for (int i = 0; i < 2; i++)
+        //    {
+        //        eventsList.Add(new EventGridEvent()
+        //        {
+
+        //            Id = Guid.NewGuid().ToString(),
+        //            EventType = "Contoso.Items.ItemReceived",
+        //            Data = new ContosoItemReceivedEventData()
+        //            {
+        //                emailbody = "Contoso Item SKU #1",
+        //                emailsubject = "Email Subject"
+        //            },
+        //            EventTime = DateTime.Now,
+        //            Subject = "Door1",
+        //            DataVersion = "2.0"
+        //        });
+        //    }
+
+        //    return eventsList;
+        //}
+
     }
-
-    //private async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
-    //{
-    //    Console.WriteLine("\tDesired property changed:");
-    //    Console.WriteLine($"\t{desiredProperties.ToJson()}");
-
-    //    Console.WriteLine("\tSending current time as reported property");
-    //    TwinCollection reportedProperties = new();
-    //    reportedProperties["DateTimeLastDesiredPropertyChangeReceived"] = DateTime.Now;
-
-    //    await myDeviceClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
-    //}
-
-    //static IList<EventGridEvent> GetEventsList()
-    //{
-    //    List<EventGridEvent> eventsList = new List<EventGridEvent>();
-
-    //    for (int i = 0; i < 2; i++)
-    //    {
-    //        eventsList.Add(new EventGridEvent()
-    //        {
-
-    //            Id = Guid.NewGuid().ToString(),
-    //            EventType = "Contoso.Items.ItemReceived",
-    //            Data = new ContosoItemReceivedEventData()
-    //            {
-    //                emailbody = "Contoso Item SKU #1",
-    //                emailsubject = "Email Subject"
-    //            },
-    //            EventTime = DateTime.Now,
-    //            Subject = "Door1",
-    //            DataVersion = "2.0"
-    //        });
-    //    }
-
-    //    return eventsList;
-    //}
-
-
-
 }
 

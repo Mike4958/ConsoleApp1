@@ -18,10 +18,12 @@ namespace ConsoleApp1
 
 #if RASPBERRY
             Console.WriteLine("Waiting 1.5 minutes to allow Wifi Connection");
+           //Thread.Sleep(90000);
             Thread.Sleep(90000);
 #endif
 
-            Class1 myClass11 = new();
+            Class1 class1 = new();
+            Class1 myClass11 = class1;
 
             //Task MyTask = MyClass11.FloatSwitchStatusAlertWatch();
 
@@ -41,10 +43,15 @@ namespace ConsoleApp1
 
 #if RASPBERRY
             Thread.Sleep(10000);
-            myClass11.MyTaskDelay = 600;
+            myClass11.MyTaskDelay = 120;
 #else
             myClass11.MyTaskDelay = 60;
 #endif
+            Task Floattask = myClass11.FloatSwitchStatusAlertWatch();
+            Task tsWhile;
+
+            CancellationTokenSource ts = new CancellationTokenSource();
+
 
             while (true)
             {
@@ -57,8 +64,11 @@ namespace ConsoleApp1
                     while (iCount < myClass11.MyTaskDelay)
                     {
 
-                        iCount += 1;                  
-#if HOURLYCOUNT
+                        iCount += myClass11.WhileSpeed;
+                        Console.WriteLine("Main WhileLoop Count = " + iCount.ToString());
+
+
+#if HOURLYCOUNT && !RASPBERRY
                         // Setting iCount randomly back (-) a few seconds will cause While Loop to last longer. This will allow the HourlyCount vary
                         iCount2 = r.Next((int)(myClass11.MyTaskDelay * (.1)), (int)(myClass11.MyTaskDelay * (.35)));
                         iCount += r.Next(1, iCount2);
@@ -67,18 +77,25 @@ namespace ConsoleApp1
                         _ = myClass11.HourlyCount += 1;
 
 #endif
+                        //await Task.Delay(1000);
+                        //Thread.Sleep((Int32)(myClass11.WhileSpeed * 1000));
+                        //myClass11.FloatSwitchStatusAlertWatch();
+                        tsWhile = Task.Run(() => {
+                            Task.Delay((int)(myClass11.WhileSpeed * 1000)).Wait();  
+                            //ts.Cancel();
+                        });
 
-                        Thread.Sleep((Int32)(1 * 1000));
-                    }
+                        tsWhile.Wait(); // Over all this takes longer than a second to End
+
+                        }
 #if HOURLYCOUNT
 
 #endif
-                    myClass11.FloatSwitchStatusAlertWatch();
-
-
                     _ = myClass11.SendDeviceToCloudMessages();
 
-                //if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
+
+
+                    //if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
                 }
                 catch (Exception)
                 {
