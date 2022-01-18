@@ -1,8 +1,7 @@
-﻿
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,13 +12,17 @@ namespace ConsoleApp1
 
         public static void Main(string[] args)
         {
+
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.White;
+
             Console.WriteLine("Hello World!");
 
 
 #if RASPBERRY
             Console.WriteLine("Waiting 1.5 minutes to allow Wifi Connection");
-           //Thread.Sleep(90000);
-            Thread.Sleep(90000);
+            //Thread.Sleep(90000);
+            Thread.Sleep(60000);
 #endif
 
             Class1 class1 = new();
@@ -27,23 +30,24 @@ namespace ConsoleApp1
 
             //Task MyTask = MyClass11.FloatSwitchStatusAlertWatch();
 
-// send device connected message
-//_ = myClass11.SendDeviceToCloudMessagesAsync();
-//    //await _vm.RunSampleAsync();
-//    //await _vm.SendEventsToTopic();
+            // send device connected message
+            //_ = myClass11.SendDeviceToCloudMessagesAsync();
+            //    //await _vm.RunSampleAsync();
+            //    //await _vm.SendEventsToTopic();
 
-// receive remote light control events
-
-
-//_ = myClass11.ReceiveCloudToDeviceMessageAsync();
+            // receive remote light control events
 
 
-//_ = myClass11.FloatSwitchStatusAlertWatch();
-// _ = myClass11.MyMain();
+            //_ = myClass11.ReceiveCloudToDeviceMessageAsync();
+
+
+            //_ = myClass11.FloatSwitchStatusAlertWatch();
+            // _ = myClass11.MyMain();
 
 #if RASPBERRY
-            Thread.Sleep(10000);
-            myClass11.MyTaskDelay = 120;
+            Thread.Sleep(15000);
+            
+            //myClass11.MyTaskDelay = 120;
 #else
             myClass11.MyTaskDelay = 60;
 #endif
@@ -55,7 +59,7 @@ namespace ConsoleApp1
 
             while (true)
             {
-                try 
+                try
                 {
                     int iCount = 0;
                     int iCount2 = 0;
@@ -63,6 +67,7 @@ namespace ConsoleApp1
 
                     while (iCount < myClass11.MyTaskDelay)
                     {
+                        Console.ForegroundColor = ConsoleColor.White;
 
                         iCount += myClass11.WhileSpeed;
                         Console.WriteLine("Main WhileLoop Count = " + iCount.ToString());
@@ -80,26 +85,31 @@ namespace ConsoleApp1
                         //await Task.Delay(1000);
                         //Thread.Sleep((Int32)(myClass11.WhileSpeed * 1000));
                         //myClass11.FloatSwitchStatusAlertWatch();
-                        tsWhile = Task.Run(() => {
-                            Task.Delay((int)(myClass11.WhileSpeed * 1000)).Wait();  
+                        tsWhile = Task.Run(() =>
+                        {
+                            Task.Delay((int)(myClass11.WhileSpeed * 1000)).Wait();
                             //ts.Cancel();
                         });
 
                         tsWhile.Wait(); // Over all this takes longer than a second to End
 
-                        }
+                    }
 #if HOURLYCOUNT
 
 #endif
-                    _ = myClass11.SendDeviceToCloudMessages();
-
-
+                    //Task.Run(() =>
+                    //{
+                        myClass11.SendDeviceToCloudMessages();
+                    //});
 
                     //if (myClass11.SendEventData) { _ = myClass11.MyMain(); }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Main: " + ex.Message);
+                    Debug.WriteLine("Mian: " + ex.Message);
+                    Console.ResetColor();
                 }
                 finally
                 {
@@ -109,13 +119,13 @@ namespace ConsoleApp1
             }
         }
 
-     //   public static IHostBuilder CreateHostBuilder(string[] args) =>
-     //Host.CreateDefaultBuilder(args)
-     //    .UseSystemd()
-     //    .ConfigureServices((hostContext, services) =>
-     //    {
-     //        services.AddHostedService<Worker>();
-     //    });
+        //   public static IHostBuilder CreateHostBuilder(string[] args) =>
+        //Host.CreateDefaultBuilder(args)
+        //    .UseSystemd()
+        //    .ConfigureServices((hostContext, services) =>
+        //    {
+        //        services.AddHostedService<Worker>();
+        //    });
 
     }
     public class Worker : BackgroundService

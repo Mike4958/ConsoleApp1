@@ -15,7 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Messaging.EventGrid" Version="4.7.0" />
+    <PackageReference Include="Azure.Messaging.EventGrid" Version="4.8.1" />
     <PackageReference Include="Azure.Messaging.EventHubs" Version="5.7.0-beta.1" />
     <PackageReference Include="Azure.Messaging.EventHubs.Processor" Version="5.7.0-beta.1" />
     <PackageReference Include="Microsoft.Azure.Devices" Version="1.36.0" />

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Text;
-using System.Threading.Tasks;
-namespace ConsoleApp1
+﻿namespace ConsoleApp1
 {
     internal class Class3
     {

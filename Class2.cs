@@ -1,13 +1,4 @@
-﻿using Microsoft.Azure.Devices.Client;
-using Microsoft.Azure.Devices.Client.Exceptions;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 
 namespace ConsoleApp1
 {
@@ -21,7 +12,7 @@ namespace ConsoleApp1
             BackgroundWorker backgroundWorker = new();
             // Hide this line from ERROR -------backgroundWorker.DoWork += ReceiveFeedback;
             backgroundWorker.RunWorkerAsync();
-                     
+
         }
 
         // 
@@ -45,7 +36,7 @@ namespace ConsoleApp1
         //Applicatiom
         //Cloud to Device Messaging
         //When we want to send one-way notifications or commands to our devices, we can use cloud to device messages.To do this, we will expand on the EngineManagement application we created in our earlier posts, by adding the following controls, which, in our scenario, will allow us to start the fans of the selected engine.
-        
+
         // Hide this line from ERROR -------private readonly ServiceClient serviceClient = ServiceClient.CreateFromConnectionString("HostName=youriothubname.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=yoursharedaccesskey");
         //private async void ButtonStartFans_Click(object sender, EventArgs e)
 
@@ -140,7 +131,7 @@ namespace ConsoleApp1
         //        // Hide this line from ERROR ------- Or
         //        // Hide this line from ERROR ------- Invoke the direct method asynchronously and get the response from the simulated device.
         //        // Hide this line from ERROR ------- https://github.com/Azure-Samples/azure-iot-samples-csharp/blob/main/iot-hub/Quickstarts/InvokeDeviceMethod/Program.cs
-        
+
         // var response = await s_serviceClient.InvokeDeviceMethodAsync("MyDotnetDevice", methodInvocation);
 
         //    }
